@@ -41,6 +41,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install GDAL (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
       - name: Install maturin
         run: pip install maturin
 
@@ -98,6 +103,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install GDAL (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgdal-dev gdal-bin
+
+      - name: Install GDAL (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install gdal
+
+      - name: Install GDAL (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install gdal --version=3.5.0 -y
+        env:
+          CHOCOLATEY_NO_PROMPT: 1
 
       - name: Install maturin
         run: pip install maturin
