@@ -102,33 +102,24 @@ jobs:
       - name: Install maturin
         run: pip install maturin
 
-      - name: Set Rust target for aarch64
-        if: matrix.architecture == 'aarch64'
+      - name: Set Rust target
         id: target
         run: |
-          TARGET=$(
+          if [[ "${{ matrix.architecture }}" == "aarch64" ]]; then
             if [[ "${{ matrix.os }}" == "macos-15" ]]; then
-              echo "aarch64-apple-darwin";
+              echo "target=aarch64-apple-darwin" >> $GITHUB_OUTPUT
             else
-              echo "aarch64-unknown-linux-gnu";
+              echo "target=aarch64-unknown-linux-gnu" >> $GITHUB_OUTPUT
             fi
-          )
-          echo "target=$TARGET" >> $GITHUB_OUTPUT
-
-      - name: Set Rust target for x86-64
-        if: matrix.architecture == 'x86-64'
-        id: target
-        run: |
-          TARGET=$(
+          elif [[ "${{ matrix.architecture }}" == "x86-64" ]]; then
             if [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
-              echo "x86_64-apple-darwin";
+              echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
             elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-              echo "x86_64-pc-windows-msvc";
+              echo "target=x86_64-pc-windows-msvc" >> $GITHUB_OUTPUT
             else
-              echo "x86_64-unknown-linux-gnu";
+              echo "target=x86_64-unknown-linux-gnu" >> $GITHUB_OUTPUT
             fi
-          )
-          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build wheel
         uses: PyO3/maturin-action@v1
