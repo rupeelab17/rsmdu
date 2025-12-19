@@ -1,4 +1,4 @@
-# rsmdu
+# pymdurs
 
 Rust transpilation of [pymdu](https://github.com/rupeelab17/pymdu) (Python Urban Data Model).
 
@@ -61,8 +61,8 @@ This project transpiles the Python pymdu library to Rust, using the [GeoRust](ht
 This project is organized as a **Cargo workspace** with two main crates:
 
 ```
-rsmdu/
-├── rsmdu-core/           # Core Rust library
+pymdurs/
+├── rsmdu/           # Core Rust library
 │   ├── src/
 │   │   ├── geometric/          # Geometric data structures
 │   │   │   ├── building.rs     # Building and BuildingCollection
@@ -85,7 +85,7 @@ rsmdu/
 │       ├── iris_from_ign.rs     # IRIS example
 │       └── lcz_from_url.rs      # LCZ example
 │
-└── py-rsmdu/            # Python bindings (PyO3)
+└── pymdurs/            # Python bindings (PyO3)
     ├── src/
     │   └── lib.rs              # PyO3 bindings
     ├── examples/               # Python usage examples
@@ -135,8 +135,8 @@ rsmdu/
 ### Rust Library
 
 ```bash
-git clone https://github.com/rupeelab17/rsmdu.git
-cd rsmdu
+git clone https://github.com/rupeelab17/pymdurs.git
+cd pymdurs
 cargo build --release
 ```
 
@@ -149,7 +149,7 @@ Install from source using maturin:
 pip install maturin
 
 # Navigate to Python package directory
-cd py-rsmdu
+cd pymdurs
 
 # For Apple Silicon (ARM64) - use native target
 maturin develop --target aarch64-apple-darwin
@@ -279,7 +279,7 @@ Comprehensive examples are available for both Rust and Python:
 
 ### Rust Examples
 
-Located in `rsmdu-core/examples/`:
+Located in `rsmdu/examples/`:
 
 **Building Examples:**
 
@@ -299,7 +299,7 @@ Located in `rsmdu-core/examples/`:
 **Run Rust examples:**
 
 ```bash
-cd rsmdu-core
+cd rsmdu
 cargo run --example building_manual
 cargo run --example building_from_geojson
 cargo run --example building_from_ign
@@ -311,7 +311,7 @@ cargo run --example lcz_from_url
 
 ### Python Examples
 
-Located in `py-rsmdu/examples/`:
+Located in `pymdurs/examples/`:
 
 - **`building_basic.py`**: Basic Building usage
 - **`building_from_ign.py`**: Load buildings from IGN API
@@ -323,7 +323,7 @@ Located in `py-rsmdu/examples/`:
 **Run Python examples:**
 
 ```bash
-cd py-rsmdu
+cd pymdurs
 python examples/building_basic.py
 python examples/building_from_ign.py
 python examples/dem_from_ign.py
@@ -332,7 +332,7 @@ python examples/iris_from_ign.py
 python examples/lcz_from_url.py
 ```
 
-See `py-rsmdu/examples/README.md` for detailed documentation of each Python example.
+See `pymdurs/examples/README.md` for detailed documentation of each Python example.
 
 ## IGN API
 
@@ -464,7 +464,7 @@ pub struct BuildingCollection {
 Run Rust unit tests:
 
 ```bash
-cd rsmdu-core
+cd rsmdu
 cargo test
 ```
 
@@ -473,14 +473,14 @@ cargo test
 Run Python tests:
 
 ```bash
-cd py-rsmdu
+cd pymdurs
 pytest tests/
 ```
 
 Or manually test the Python bindings:
 
 ```bash
-cd py-rsmdu
+cd pymdurs
 python -c "import rsmdu; print('✅ rsmdu imported successfully')"
 python -c "import rsmdu; print('Available classes:', [x for x in dir(rsmdu.geometric) if not x.startswith('_')])"
 ```
@@ -501,14 +501,14 @@ Contributions are welcome! This project follows standard Rust and Python best pr
 2. **Set up Rust development:**
 
    ```bash
-   cd rsmdu-core
+   cd rsmdu
    cargo build
    cargo test
    ```
 
 3. **Set up Python development:**
    ```bash
-   cd py-rsmdu
+   cd pymdurs
    pip install maturin
    maturin develop --target aarch64-apple-darwin  # or your target
    ```

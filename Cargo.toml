@@ -1,5 +1,5 @@
 [workspace]
-members = ["rsmdu-core", "py-rsmdu"]
+members = ["rsmdu", "pymdurs"]
 resolver = "2"
 
 [workspace.package]

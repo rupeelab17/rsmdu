@@ -1,5 +1,5 @@
 [package]
-name = "rsmdu-core"
+name = "rsmdu"
 version.workspace = true
 edition.workspace = true
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Core library"

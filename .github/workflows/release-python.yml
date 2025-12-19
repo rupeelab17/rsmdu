@@ -49,15 +49,15 @@ jobs:
         with:
           command: sdist
           args: >
-            --manifest-path py-rsmdu/Cargo.toml
+            --manifest-path pymdurs/Cargo.toml
             --out dist
           maturin-version: 1.8.3
 
       - name: Test sdist
         run: |
           pip install --force-reinstall --verbose dist/*.tar.gz
-          python -c 'import rsmdu; print("✅ rsmdu imported successfully")'
-          python -c 'import rsmdu; print("Available classes:", [x for x in dir(rsmdu.geometric) if not x.startswith("_")])'
+          python -c 'import pymdurs; print("✅ pymdurs imported successfully")'
+          python -c 'import pymdurs; print("Available classes:", [x for x in dir(pymdurs.geometric) if not x.startswith("_")])'
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
@@ -137,7 +137,7 @@ jobs:
           target: ${{ steps.target.outputs.target }}
           args: >
             --release
-            --manifest-path py-rsmdu/Cargo.toml
+            --manifest-path pymdurs/Cargo.toml
             --out dist
           manylinux: ${{ matrix.architecture == 'aarch64' && '2_24' || 'auto' }}
           maturin-version: 1.8.3
@@ -145,9 +145,9 @@ jobs:
       - name: Test wheel
         run: |
           pip install --force-reinstall --verbose dist/*.whl
-          python -c 'import rsmdu; print("✅ rsmdu imported successfully")'
-          python -c 'import rsmdu; print("Available classes:", [x for x in dir(rsmdu.geometric) if not x.startswith("_")])'
-          python -c 'import rsmdu; bbox = rsmdu.PyBoundingBox(-1.0, 46.0, 1.0, 47.0); print("✅ PyBoundingBox works:", bbox.min_x)'
+          python -c 'import pymdurs; print("✅ pymdurs imported successfully")'
+          python -c 'import pymdurs; print("Available classes:", [x for x in dir(pymdurs.geometric) if not x.startswith("_")])'
+          python -c 'import pymdurs; bbox = pymdurs.PyBoundingBox(-1.0, 46.0, 1.0, 47.0); print("✅ PyBoundingBox works:", bbox.min_x)'
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
@@ -159,7 +159,7 @@ jobs:
     needs: [build-sdist, build-wheels]
     environment:
       name: release-python
-      url: https://pypi.org/project/rsmdu
+      url: https://pypi.org/project/pymdurs
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -190,7 +190,7 @@ jobs:
       - name: Get version from pyproject.toml
         id: version
         run: |
-          VERSION=$(grep -m 1 -oP 'version = "\K[^"]+' py-rsmdu/pyproject.toml)
+          VERSION=$(grep -m 1 -oP 'version = "\K[^"]+' pymdurs/pyproject.toml)
           if [[ "$VERSION" == *"-"* ]] || [[ "$VERSION" == *"dev"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"rc"* ]]; then
             IS_PRERELEASE=true
           else
@@ -208,34 +208,34 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v1
         with:
-          name: Python rsmdu ${{ steps.version.outputs.version }}
+          name: Python pymdurs ${{ steps.version.outputs.version }}
           tag: py-${{ steps.version.outputs.version }}
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           files: dist/*
           body: |
             ## Python Package Release ${{ steps.version.outputs.version }}
 
-            This release includes Python bindings for rsmdu.
+            This release includes Python bindings for pymdurs.
 
             ### Installation
 
             ```bash
-            pip install rsmdu
+            pip install pymdurs
             ```
 
             ### Available Classes
 
-            - `rsmdu.geometric.Building` - Building data collection
-            - `rsmdu.geometric.Dem` - Digital Elevation Model
-            - `rsmdu.geometric.Cadastre` - Cadastral parcel data
-            - `rsmdu.geometric.Iris` - IRIS statistical units
-            - `rsmdu.geometric.Lcz` - Local Climate Zone
-            - `rsmdu.BoundingBox` - Bounding box operations
-            - `rsmdu.GeoCore` - CRS and geographic operations
+            - `pymdurs.geometric.Building` - Building data collection
+            - `pymdurs.geometric.Dem` - Digital Elevation Model
+            - `pymdurs.geometric.Cadastre` - Cadastral parcel data
+            - `pymdurs.geometric.Iris` - IRIS statistical units
+            - `pymdurs.geometric.Lcz` - Local Climate Zone
+            - `pymdurs.BoundingBox` - Bounding box operations
+            - `pymdurs.GeoCore` - CRS and geographic operations
 
             ### Changes
 
-            See the [changelog](https://github.com/rupeelab17/rsmdu/blob/main/CHANGELOG.md) for details.
+            See the [changelog](https://github.com/rupeelab17/pymdurs/blob/main/CHANGELOG.md) for details.
 
             ### Requirements
 
