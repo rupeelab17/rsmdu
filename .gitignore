@@ -1,0 +1,126 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+# Note: Cargo.lock est généralement ignoré pour les bibliothèques
+# mais peut être commité pour les binaires. Pour ce projet (lib + bin),
+# on l'ignore par défaut.
+Cargo.lock
+.cargo/
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - IntelliJ / CLion
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE - Vim
+*.swp
+*.swo
+*~
+
+# IDE - Emacs
+*~
+\#*\#
+.\#*
+
+# IDE - Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# OS - macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# OS - Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# OS - Linux
+*~
+.directory
+.Trash-*
+
+# Debug
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Profiling
+*.profdata
+*.gcda
+*.gcno
+
+# Coverage
+tarpaulin-report.html
+cobertura.xml
+lcov.info
+
+# Documentation
+/target/doc/
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Test artifacts
+*.test
+
+# Output files
+/output/
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.geojson
+*.json
+
+# Keep CSV data file (needed for IGN API)
+!src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv
+
+# Temporary files
+*.tmp
+*.temp
+/temp/
+/tmp/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.backup
+*~
+
+py-pymdurs/examples/output/
+py-pymdurs/examples/temp/
+pymdurs-core/examples/output/
+pymdurs-core/examples/temp/

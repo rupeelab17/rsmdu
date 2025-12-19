@@ -1,0 +1,50 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rsmdu"
+version = "0.1.0"
+description = "Rust transpilation of pymdu (Python Urban Data Model) - Python bindings"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "GPL-3.0" }
+authors = [
+    { name = "Boris Brangeon", email = "boris.boris@plateforme-tipee.com" }
+]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy<2.0.0",  # Pin NumPy <2.0 for compatibility with numexpr and other dependencies
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.maturin]
+features = []
+module-name = "rsmdu"
+# Package Python files alongside the compiled extension
+# The rsmdu/__init__.py will be included automatically
+# Use native target instead of forcing x86_64
+# This will use the default Rust target (aarch64-apple-darwin on Apple Silicon)
+# Optionnel : spécifier le target
+# target = "aarch64-apple-darwin"  # Pour ARM64
+# target = "x86_64-apple-darwin"   # Pour x86_64
+
