@@ -5,6 +5,11 @@ use gdal::vector::{Feature as GdalFeature, LayerAccess};
 use gdal::{Dataset, DriverManager};
 use geo::{Area, Centroid, Polygon};
 use geojson::{Feature as GeoJsonFeature, GeoJson, Geometry};
+// GeoPolars integration - geometry column is added as WKB bytes
+// TODO: Use GeoDataFrame when GeoPolars API is stable
+// // GeoPolars integration - geometry column is added as WKB bytes
+// TODO: Use GeoDataFrame when GeoPolars API is stable
+// use geopolars::geodataframe::GeoDataFrame;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -679,6 +684,7 @@ impl BuildingCollection {
 
     /// Convert building collection to Polars DataFrame
     /// Similar to to_gdf() in Python version
+    /// Returns a standard Polars DataFrame (not GeoDataFrame)
     pub fn to_polars_df(&self) -> Result<DataFrame> {
         let mut height_vec: Vec<Option<f64>> = Vec::new();
         let mut area_vec: Vec<f64> = Vec::new();
@@ -708,6 +714,130 @@ impl BuildingCollection {
             "noHauteur" => no_hauteur_vec,
         ]
         .context("Failed to create DataFrame")?;
+
+        Ok(df)
+    }
+
+    /// Convert building collection to Polars DataFrame with geometry column (EWKB format)
+    /// Compatible with polars-st (https://github.com/Oreilles/polars-st)
+    /// Returns a DataFrame with a "geometry" column containing EWKB bytes with SRID
+    /// polars-st stores geometries as EWKB in Binary columns
+    pub fn to_gdf(&self) -> Result<DataFrame> {
+        use geo::Geometry;
+        use geos::Geometry as GeosGeometry;
+        use std::io::{Cursor, Read, Write};
+
+        let mut height_vec: Vec<Option<f64>> = Vec::new();
+        let mut area_vec: Vec<f64> = Vec::new();
+        let mut centroid_x_vec: Vec<f64> = Vec::new();
+        let mut centroid_y_vec: Vec<f64> = Vec::new();
+        let mut nombre_d_etages_vec: Vec<Option<f64>> = Vec::new();
+        let mut hauteur_2_vec: Vec<Option<f64>> = Vec::new();
+        let mut no_hauteur_vec: Vec<bool> = Vec::new();
+        let mut geometry_vec: Vec<Vec<u8>> = Vec::new();
+
+        let srid = self.geo_core.epsg;
+
+        for building in &self.buildings {
+            height_vec.push(building.height);
+            area_vec.push(building.area);
+            centroid_x_vec.push(building.centroid.x());
+            centroid_y_vec.push(building.centroid.y());
+            nombre_d_etages_vec.push(building.nombre_d_etages);
+            hauteur_2_vec.push(building.hauteur_2);
+            no_hauteur_vec.push(building.no_hauteur);
+
+            // Convert Polygon to EWKB for polars-st
+            // EWKB = WKB + SRID in header
+            // Create WKT directly from Polygon, then use GDAL to get WKB
+            let poly = &building.footprint;
+
+            // Create WKT string from Polygon
+            let mut wkt = String::from("POLYGON((");
+            for (i, coord) in poly.exterior().0.iter().enumerate() {
+                if i > 0 {
+                    wkt.push_str(", ");
+                }
+                wkt.push_str(&format!("{} {}", coord.x, coord.y));
+            }
+            wkt.push_str(")");
+
+            // Add interior rings if any
+            for ring in poly.interiors() {
+                wkt.push_str(", (");
+                for (i, coord) in ring.0.iter().enumerate() {
+                    if i > 0 {
+                        wkt.push_str(", ");
+                    }
+                    wkt.push_str(&format!("{} {}", coord.x, coord.y));
+                }
+                wkt.push_str(")");
+            }
+            wkt.push_str(")");
+
+            // Create GDAL geometry from WKT
+            use gdal::vector::Geometry as GdalGeometry;
+            let gdal_geom =
+                GdalGeometry::from_wkt(&wkt).context("Failed to create GDAL geometry from WKT")?;
+
+            // Get WKB from GDAL
+            let wkb = gdal_geom
+                .wkb()
+                .context("Failed to get WKB from GDAL geometry")?;
+
+            // Convert to EWKB by adding SRID
+            // EWKB format: byte_order (1) + geometry_type_with_srid_flag (4) + srid (4) + wkb_data
+            let mut ewkb = Vec::new();
+            let mut cursor = Cursor::new(&wkb);
+
+            // Read byte order (1 byte)
+            let mut byte_order = [0u8; 1];
+            cursor
+                .read_exact(&mut byte_order)
+                .context("Failed to read WKB byte order")?;
+            ewkb.write_all(&byte_order)?;
+
+            // Read geometry type (4 bytes)
+            let mut geom_type_bytes = [0u8; 4];
+            cursor
+                .read_exact(&mut geom_type_bytes)
+                .context("Failed to read WKB geometry type")?;
+
+            // Add SRID flag (0x20000000) to geometry type
+            let geom_type = u32::from_le_bytes(geom_type_bytes);
+            let geom_type_with_srid = geom_type | 0x20000000;
+            ewkb.write_all(&geom_type_with_srid.to_le_bytes())?;
+
+            // Add SRID (4 bytes, little-endian)
+            ewkb.write_all(&srid.to_le_bytes())?;
+
+            // Copy remaining WKB data
+            let mut remaining = Vec::new();
+            cursor
+                .read_to_end(&mut remaining)
+                .context("Failed to read remaining WKB data")?;
+            ewkb.write_all(&remaining)?;
+
+            geometry_vec.push(ewkb);
+        }
+
+        // Create Series with geometries (EWKB bytes)
+        // Polars Binary type: use df! macro which handles types automatically
+        // Convert Vec<Vec<u8>> to Vec<Option<Vec<u8>>> for Binary type
+        let geometry_opt_vec: Vec<Option<Vec<u8>>> = geometry_vec.into_iter().map(Some).collect();
+
+        // Create DataFrame with all columns including geometry
+        let df = df! [
+            "geometry" => geometry_opt_vec,
+            "hauteur" => height_vec,
+            "area" => area_vec,
+            "centroid_x" => centroid_x_vec,
+            "centroid_y" => centroid_y_vec,
+            "nombre_d_etages" => nombre_d_etages_vec,
+            "hauteur_2" => hauteur_2_vec,
+            "noHauteur" => no_hauteur_vec,
+        ]
+        .context("Failed to create GeoDataFrame")?;
 
         Ok(df)
     }

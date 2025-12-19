@@ -1,7 +1,7 @@
-use rsmdu::geometric::lcz::Lcz;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use rsmdu::geometric::lcz::Lcz;
 
 use crate::bindings::geo_core::PyGeoCore;
 
@@ -41,7 +41,7 @@ impl PyLcz {
     #[pyo3(signature = (zipfile_url = None))]
     fn run(mut slf: PyRefMut<Self>, zipfile_url: Option<String>) -> PyResult<PyRefMut<Self>> {
         slf.inner
-            .run_internal(zipfile_url.as_deref())
+            .run(zipfile_url.as_deref())
             .map_err(|e| PyValueError::new_err(format!("Failed to run Lcz: {}", e)))?;
         Ok(slf)
     }

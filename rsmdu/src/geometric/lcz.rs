@@ -1,7 +1,17 @@
 use anyhow::{Context, Result};
-use geojson::GeoJson;
+use geojson::{Feature, GeoJson, Geometry};
 use std::collections::HashMap;
+use std::fs;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use tempfile::TempDir;
+use zip::ZipArchive;
+
+use gdal::spatial_ref::{CoordTransform, SpatialRef};
+use gdal::vector::LayerAccess;
+use gdal::Dataset;
+use geo::algorithm::intersects::Intersects;
+use geo::{Coord, Geometry as GeoGeometry, LineString, Polygon};
 
 use crate::geo_core::{BoundingBox, GeoCore};
 
@@ -144,62 +154,215 @@ impl Lcz {
 
     /// Run LCZ processing: load from zip URL, filter by bbox, reproject
     /// Following Python: def run(self, zipfile_url: str = "...")
-    /// Note: Full implementation would require:
-    /// - Downloading and extracting zip file
-    /// - Reading shapefile with GDAL
-    /// - Spatial overlay operations
-    /// - Reprojection
-    /// For now, this is a placeholder that stores the bbox
-    pub fn run(self, zipfile_url: Option<&str>) -> Result<Self> {
-        // Python: gdf = gpd.read_file(zipfile_url, driver="ESRI Shapefile")
-        //         gdf1 = gdf[["lcz_int", "geometry"]].copy()
-        //         gdf1["color"] = [self.table_color[x][1] for x in gdf1["lcz_int"]]
-        //         gdf1 = gdf1.to_crs(self._epsg)
-        //         bbox_final = box(self._bbox[0], self._bbox[1], self._bbox[2], self._bbox[3])
-        //         gdf_bbox_mask = gpd.GeoDataFrame(...)
-        //         gdf_bbox_mask = gdf_bbox_mask.to_crs(self._epsg)
-        //         self.gdf = gpd.overlay(df1=gdf1, df2=gdf_bbox_mask, how="intersection", keep_geom_type=False)
-
-        let _url = zipfile_url.unwrap_or(
-            "zip+https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-de-83-aires-urbaines-de-plus-de-50-000-habitants-2022/20241210-104453/lcz-spot-2022-la-rochelle.zip"
+    /// Downloads ZIP file, extracts shapefile, reads with GDAL, filters by bbox, and reprojects
+    pub fn run(&mut self, zipfile_url: Option<&str>) -> Result<()> {
+        let url = zipfile_url.unwrap_or(
+            "https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-de-83-aires-urbaines-de-plus-de-50-000-habitants-2022/20241210-104453/lcz-spot-2022-la-rochelle.zip"
         );
 
-        // TODO: Implement full LCZ processing:
-        // 1. Download zip file from URL
-        // 2. Extract shapefile
-        // 3. Read with GDAL
-        // 4. Filter by lcz_int and add color column
-        // 5. Reproject to target CRS
-        // 6. Create bbox polygon
-        // 7. Perform spatial overlay (intersection)
-        // 8. Store result as GeoJSON
-
-        // For now, we just validate that bbox is set
-        self.bbox
+        let bbox = self
+            .bbox
             .context("Bounding box must be set before running LCZ processing")?;
 
-        println!(
-            "LCZ processing: TODO - Full implementation requires GDAL shapefile reading and spatial overlay"
-        );
-        println!(
-            "  Python equivalent: gpd.read_file(zipfile_url) -> overlay with bbox -> to_crs(epsg)"
-        );
+        println!("Téléchargement du fichier ZIP depuis: {}", url);
 
-        Ok(self)
+        // 1. Télécharger et extraire le ZIP
+        let temp_dir = self.download_and_extract_zip(url)?;
+
+        // 2. Trouver le fichier .shp dans le dossier temporaire
+        let shp_path = self.find_shapefile(&temp_dir)?;
+        println!("Shapefile trouvé: {:?}", shp_path);
+
+        // 3. Lire le shapefile avec GDAL
+        let dataset = Dataset::open(&shp_path).context("Impossible d'ouvrir le shapefile")?;
+
+        let mut layer = dataset
+            .layer(0)
+            .context("Impossible d'accéder à la première couche")?;
+
+        // 4. Créer la transformation de coordonnées
+        let source_srs = layer
+            .spatial_ref()
+            .context("Impossible d'obtenir le SRS source")?;
+        let target_srs = SpatialRef::from_epsg(self.geo_core.epsg as u32)
+            .context("Impossible de créer le SRS cible")?;
+        let transform = CoordTransform::new(&source_srs, &target_srs)
+            .context("Impossible de créer la transformation")?;
+
+        // 5. Créer le polygone bbox
+        let bbox_polygon = self.create_bbox_polygon(bbox);
+
+        // 6. Traiter chaque feature
+        let mut features = Vec::new();
+
+        for (idx, feature) in layer.features().enumerate() {
+            // Lire lcz_int
+            // field() retourne Result<Option<FieldValue>, GdalError>, into_int() retourne Option<i32>
+            let lcz_int = match feature.field("lcz_int") {
+                Ok(Some(field_value)) => field_value.into_int().unwrap_or(0) as u8,
+                Ok(None) | Err(_) => 0,
+            };
+
+            // Obtenir la couleur depuis la table
+            let color = self
+                .table_color
+                .get(&lcz_int)
+                .map(|(_, c)| c.clone())
+                .unwrap_or_else(|| "#000000".to_string());
+
+            // Lire et transformer la géométrie
+            if let Some(geom_ref) = feature.geometry() {
+                // Cloner la géométrie pour pouvoir la transformer
+                let geom = geom_ref.clone();
+                // Reprojeter
+                if geom.transform(&transform).is_ok() {
+                    // Convertir en geo::Geometry puis GeoJSON
+                    if let Ok(geo_geom) = self.gdal_to_geo_geometry(&geom) {
+                        // Intersection avec bbox
+                        if self.geometry_intersects_bbox(&geo_geom, &bbox_polygon) {
+                            // Convertir geo::Geometry en geojson::Geometry
+                            if let Ok(geojson_geom) = self.geo_to_geojson_geometry(&geo_geom) {
+                                let mut feature_json = Feature::from(geojson_geom);
+                                feature_json.set_property("lcz_int", lcz_int as i64);
+                                feature_json.set_property("color", color);
+                                features.push(feature_json);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if idx % 1000 == 0 && idx > 0 {
+                println!("Traitement de {} features...", idx);
+            }
+        }
+
+        println!("Nombre de features après filtrage: {}", features.len());
+
+        // 7. Créer le GeoJSON FeatureCollection
+        let feature_collection = geojson::FeatureCollection {
+            bbox: None,
+            foreign_members: None,
+            features,
+        };
+        self.geojson = Some(GeoJson::from(feature_collection));
+
+        Ok(())
     }
 
-    /// Internal run method that can be called mutably
-    /// Used by Python bindings to avoid ownership issues
-    pub fn run_internal(&mut self, zipfile_url: Option<&str>) -> Result<()> {
-        let _url = zipfile_url.unwrap_or(
-            "zip+https://static.data.gouv.fr/resources/cartographie-des-zones-climatiques-locales-lcz-de-83-aires-urbaines-de-plus-de-50-000-habitants-2022/20241210-104453/lcz-spot-2022-la-rochelle.zip"
-        );
+    /// Download and extract ZIP file
+    fn download_and_extract_zip(&self, url: &str) -> Result<TempDir> {
+        // Télécharger le fichier
+        let response = reqwest::blocking::get(url).context("Échec du téléchargement")?;
+        let bytes = response.bytes().context("Impossible de lire les bytes")?;
 
-        self.bbox
-            .context("Bounding box must be set before running LCZ processing")?;
+        // Créer un dossier temporaire
+        let temp_dir = TempDir::new().context("Impossible de créer un dossier temporaire")?;
 
-        // TODO: Implement full processing
-        Ok(())
+        // Extraire le ZIP
+        let cursor = Cursor::new(bytes);
+        let mut archive = ZipArchive::new(cursor).context("Impossible d'ouvrir l'archive ZIP")?;
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)?;
+            let outpath = temp_dir.path().join(file.name());
+
+            if file.is_dir() {
+                fs::create_dir_all(&outpath)?;
+            } else {
+                if let Some(parent) = outpath.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                let mut outfile = fs::File::create(&outpath)?;
+                std::io::copy(&mut file, &mut outfile)?;
+            }
+        }
+
+        Ok(temp_dir)
+    }
+
+    /// Find shapefile in extracted directory
+    fn find_shapefile(&self, temp_dir: &TempDir) -> Result<PathBuf> {
+        // Recherche récursive dans le dossier temporaire
+        self.find_shapefile_recursive(temp_dir.path())
+    }
+
+    fn find_shapefile_recursive(&self, dir: &Path) -> Result<PathBuf> {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                // Recherche récursive
+                if let Ok(found) = self.find_shapefile_recursive(&path) {
+                    return Ok(found);
+                }
+            } else if path.extension().and_then(|s| s.to_str()) == Some("shp") {
+                return Ok(path);
+            }
+        }
+        anyhow::bail!("Aucun fichier .shp trouvé dans l'archive")
+    }
+
+    /// Create bbox polygon
+    fn create_bbox_polygon(&self, bbox: BoundingBox) -> Polygon<f64> {
+        Polygon::new(
+            LineString::from(vec![
+                Coord {
+                    x: bbox.min_x,
+                    y: bbox.min_y,
+                },
+                Coord {
+                    x: bbox.max_x,
+                    y: bbox.min_y,
+                },
+                Coord {
+                    x: bbox.max_x,
+                    y: bbox.max_y,
+                },
+                Coord {
+                    x: bbox.min_x,
+                    y: bbox.max_y,
+                },
+                Coord {
+                    x: bbox.min_x,
+                    y: bbox.min_y,
+                },
+            ]),
+            vec![],
+        )
+    }
+
+    /// Convert GDAL geometry to geo::Geometry
+    fn gdal_to_geo_geometry(&self, geom: &gdal::vector::Geometry) -> Result<GeoGeometry<f64>> {
+        // Get WKT representation
+        let wkt = geom.wkt().context("Failed to get WKT from GDAL geometry")?;
+
+        // Parse WKT using geos
+        use geos::Geometry as GeosGeometry;
+        let geos_geom =
+            GeosGeometry::new_from_wkt(&wkt).context("Failed to parse WKT with GEOS")?;
+
+        // Convert GEOS to geo
+        let geo_geom: GeoGeometry<f64> = geos_geom
+            .try_into()
+            .context("Failed to convert GEOS geometry to geo")?;
+
+        Ok(geo_geom)
+    }
+
+    /// Convert geo::Geometry to geojson::Geometry
+    fn geo_to_geojson_geometry(&self, geom: &GeoGeometry<f64>) -> Result<Geometry> {
+        // Use geojson's From trait
+        let geojson_geom: Geometry = geom
+            .try_into()
+            .context("Failed to convert geo geometry to GeoJSON geometry")?;
+        Ok(geojson_geom)
+    }
+
+    /// Check if geometry intersects with bbox
+    fn geometry_intersects_bbox(&self, geom: &GeoGeometry<f64>, bbox: &Polygon<f64>) -> bool {
+        bbox.intersects(geom)
     }
 
     /// Get the GeoJSON (equivalent to to_gdf() in Python)
