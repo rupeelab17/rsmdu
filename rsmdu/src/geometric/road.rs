@@ -5,24 +5,24 @@ use std::path::{Path, PathBuf};
 use crate::collect::ign::ign_collect::IgnCollect;
 use crate::geo_core::{BoundingBox, GeoCore};
 
-/// Iris structure
-/// Following Python implementation from pymdu.geometric.Iris
-/// Provides methods to collect and process IRIS (statistical units) data from IGN API
-pub struct Iris {
+/// Road structure
+/// Following Python implementation from pymdu.geometric.Road
+/// Provides methods to collect and process Road (route) data from IGN API
+pub struct Road {
     /// IgnCollect instance for API requests
     ign_collect: IgnCollect,
     /// Output path for processed data
     output_path: PathBuf,
     /// GeoCore for CRS handling
     pub geo_core: GeoCore,
-    /// Bounding box for the iris area
+    /// Bounding box for the road area
     bbox: Option<BoundingBox>,
     /// Parsed GeoJSON content
     geojson: Option<GeoJson>,
 }
 
-impl Iris {
-    /// Create a new Iris instance
+impl Road {
+    /// Create a new Road instance
     /// Following Python: def __init__(self, output_path: str | None = None)
     pub fn new(output_path: Option<String>) -> Result<Self> {
         use crate::collect::global_variables::TEMP_PATH;
@@ -34,7 +34,7 @@ impl Iris {
                 .unwrap_or(TEMP_PATH),
         );
 
-        Ok(Iris {
+        Ok(Road {
             ign_collect: IgnCollect::new()?,
             output_path: output_path_buf,
             geo_core: GeoCore::default(), // Default to EPSG:2154 (Lambert-93)
@@ -44,27 +44,27 @@ impl Iris {
     }
 
     /// Set bounding box
-    /// Following Python: iris.bbox = [min_x, min_y, max_x, max_y]
+    /// Following Python: road.bbox = [min_x, min_y, max_x, max_y]
     pub fn set_bbox(&mut self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) {
         self.bbox = Some(BoundingBox::new(min_x, min_y, max_x, max_y));
         self.ign_collect.bbox = Some(BoundingBox::new(min_x, min_y, max_x, max_y));
     }
 
     /// Set CRS
-    /// Following Python: iris._epsg = epsg
+    /// Following Python: road._epsg = epsg
     pub fn set_crs(&mut self, epsg: i32) {
         self.geo_core.set_epsg(epsg);
         self.ign_collect.geo_core.set_epsg(epsg);
     }
 
-    /// Run iris processing: download from IGN API, parse GeoJSON
+    /// Run road processing: download from IGN API, parse GeoJSON
     /// Following Python: def run(self) -> self
     pub fn run(mut self) -> Result<Self> {
-        // Execute IGN API request for iris
-        // Python: self.execute_ign(key="iris")
+        // Execute IGN API request for road
+        // Python: self.execute_ign(key="road")
         self.ign_collect
-            .execute_ign("iris")
-            .context("Failed to execute IGN request for iris")?;
+            .execute_ign("road")
+            .context("Failed to execute IGN request for road")?;
 
         // Get content from IgnCollect
         let content = self
@@ -95,10 +95,10 @@ impl Iris {
     /// Internal run method that can be called mutably
     /// Used by Python bindings to avoid ownership issues
     pub fn run_internal(&mut self) -> Result<()> {
-        // Execute IGN API request for iris
+        // Execute IGN API request for road
         self.ign_collect
-            .execute_ign("iris")
-            .context("Failed to execute IGN request for iris")?;
+            .execute_ign("road")
+            .context("Failed to execute IGN request for road")?;
 
         // Get content from IgnCollect
         let content = self
@@ -125,7 +125,7 @@ impl Iris {
     }
 
     /// Save to GeoJSON file
-    /// Following Python: def to_geojson(self, name: str = "iris")
+    /// Following Python: def to_geojson(self, name: str = "routes")
     /// Note: GeoJSON export requires GDAL and is complex
     /// For now, we save as GeoJSON - full GeoJSON export would require GDAL layer operations
     /// TODO: Implement full GeoJSON export using GDAL
@@ -143,7 +143,7 @@ impl Iris {
             .as_ref()
             .context("No GeoJSON data available. Call run() first.")?;
 
-        let name = name.unwrap_or("iris");
+        let name = name.unwrap_or("road");
 
         // Save as GeoJSON for now (GeoJSON export is complex with GDAL Rust bindings)
         let output_file = self.output_path.join(format!("{}.geojson", name));
@@ -152,7 +152,7 @@ impl Iris {
             .context(format!("Failed to write GeoJSON file: {:?}", output_file))?;
 
         println!(
-            "Iris saved to: {:?} (as GeoJSON - GeoJSON export temporarily disabled)",
+            "Road saved to: {:?} (as GeoJSON - GeoJSON export temporarily disabled)",
             output_file
         );
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rsmdu_core::geometric::lcz::Lcz;
+use rsmdu::geometric::lcz::Lcz;
 
 /// Example: Loading LCZ (Local Climate Zone) data from URL
 /// Following Python example from pymdu.geometric.Lcz
@@ -34,7 +34,6 @@ fn main() -> Result<()> {
     let lcz_result = lcz.run(None)?;
 
     println!("\n✅ Traitement terminé!");
-    println!("  - Fichier de sortie: {:?}", lcz_result.get_output_path());
     println!("  - TODO: Implement full shapefile reading and overlay operations");
 
     Ok(())

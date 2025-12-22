@@ -124,18 +124,18 @@ impl Cadastre {
         self.geojson.as_ref()
     }
 
-    /// Save to GPKG file
-    /// Following Python: def to_gpkg(self, name: str = "cadastre")
-    /// Note: GPKG export requires GDAL and is complex
-    /// For now, we save as GeoJSON - full GPKG export would require GDAL layer operations
-    /// TODO: Implement full GPKG export using GDAL
-    pub fn to_gpkg(&self, name: Option<&str>) -> Result<()> {
-        // Python: self.gdf.to_file(f"{os.path.join(self.output_path, name)}.gpkg", driver="GPKG")
+    /// Save to GeoJSON file
+    /// Following Python: def to_geojson(self, name: str = "cadastre")
+    /// Note: GeoJSON export requires GDAL and is complex
+    /// For now, we save as GeoJSON - full GeoJSON export would require GDAL layer operations
+    /// TODO: Implement full GeoJSON export using GDAL
+    pub fn to_geojson(&self, name: Option<&str>) -> Result<()> {
+        // Python: self.gdf.to_file(f"{os.path.join(self.output_path, name)}.GeoJSON", driver="GeoJSON")
         // For now, save as GeoJSON as a workaround
-        // Full GPKG export would require:
+        // Full GeoJSON export would require:
         // 1. Converting GeoJSON to GDAL Dataset
         // 2. Reprojecting to target CRS if needed
-        // 3. Creating GPKG file with GDAL driver
+        // 3. Creating GeoJSON file with GDAL driver
         // 4. Copying layers and features
 
         let geojson = self
@@ -145,17 +145,17 @@ impl Cadastre {
 
         let name = name.unwrap_or("cadastre");
 
-        // Save as GeoJSON for now (GPKG export is complex with GDAL Rust bindings)
+        // Save as GeoJSON for now (GeoJSON export is complex with GDAL Rust bindings)
         let output_file = self.output_path.join(format!("{}.geojson", name));
         let geojson_str = geojson.to_string();
         std::fs::write(&output_file, geojson_str)
             .context(format!("Failed to write GeoJSON file: {:?}", output_file))?;
 
         println!(
-            "Cadastre saved to: {:?} (as GeoJSON - GPKG export temporarily disabled)",
+            "Cadastre saved to: {:?} (as GeoJSON - GeoJSON export temporarily disabled)",
             output_file
         );
-        println!("  TODO: Implement full GPKG export using GDAL");
+
 
         Ok(())
     }

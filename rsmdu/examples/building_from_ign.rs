@@ -23,7 +23,7 @@ fn main() -> Result<()> {
 
     // Python: buildings.Bbox = [-1.152704, 46.181627, -1.139893, 46.18699]
     // Set bounding box for IGN API request
-    buildings.set_Bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
+    buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
 
     println!("Bounding box définie:");
     println!("  - Longitude: -1.152704 à -1.139893");

@@ -54,10 +54,10 @@ impl PyIris {
     }
 
     #[pyo3(signature = (name = None))]
-    fn to_gpkg(&self, name: Option<&str>) -> PyResult<()> {
+    fn to_geojson(&self, name: Option<&str>) -> PyResult<()> {
         self.inner
-            .to_gpkg(name)
-            .map_err(|e| PyValueError::new_err(format!("Failed to save GPKG: {}", e)))
+            .to_geojson(name)
+            .map_err(|e| PyValueError::new_err(format!("Failed to save GeoJSON: {}", e)))
     }
 
     fn get_output_path(&self) -> String {

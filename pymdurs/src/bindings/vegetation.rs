@@ -1,24 +1,30 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use rsmdu::geometric::cadastre::Cadastre;
+use rsmdu::geometric::vegetation::Vegetation;
 
 use crate::bindings::geo_core::PyGeoCore;
 
-/// Cadastre Python binding
+/// Vegetation Python binding
 #[pyclass]
-pub struct PyCadastre {
-    inner: Cadastre,
+pub struct PyVegetation {
+    inner: Vegetation,
 }
 
 #[pymethods]
-impl PyCadastre {
+impl PyVegetation {
     #[new]
-    #[pyo3(signature = (output_path = None))]
-    fn new(output_path: Option<String>) -> PyResult<Self> {
-        match Cadastre::new(output_path) {
-            Ok(cadastre) => Ok(PyCadastre { inner: cadastre }),
+    #[pyo3(signature = (filepath_shp = None, output_path = None, set_crs = None, write_file = false, min_area = 0.0))]
+    fn new(
+        filepath_shp: Option<String>,
+        output_path: Option<String>,
+        set_crs: Option<i32>,
+        write_file: bool,
+        min_area: f64,
+    ) -> PyResult<Self> {
+        match Vegetation::new(filepath_shp, output_path, set_crs, write_file, min_area) {
+            Ok(vegetation) => Ok(PyVegetation { inner: vegetation }),
             Err(e) => Err(PyValueError::new_err(format!(
-                "Failed to create Cadastre: {}",
+                "Failed to create Vegetation: {}",
                 e
             ))),
         }
@@ -34,12 +40,12 @@ impl PyCadastre {
         self.inner.set_crs(epsg);
     }
 
-    /// Run cadastre processing: download from IGN API, parse GeoJSON
+    /// Run vegetation processing: calculate NDVI from IRC or load from shapefile
     fn run(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
         // Use run_internal which works on &mut self
         slf.inner
             .run_internal()
-            .map_err(|e| PyValueError::new_err(format!("Failed to run Cadastre: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Failed to run Vegetation: {}", e)))?;
         Ok(slf)
     }
 
@@ -78,5 +84,11 @@ impl PyCadastre {
         PyGeoCore {
             inner: self.inner.geo_core.clone(),
         }
+    }
+
+    /// Get minimum area filter
+    #[getter]
+    fn min_area(&self) -> f64 {
+        self.inner.get_min_area()
     }
 }

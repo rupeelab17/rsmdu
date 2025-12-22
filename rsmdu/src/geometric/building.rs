@@ -904,12 +904,12 @@ impl BuildingCollection {
         Ok(GeoJson::from(feature_collection))
     }
 
-    /// Export buildings to GPKG file
+    /// Export buildings to GeoJSON file
     /// NOTE: Temporarily disabled due to GDAL API issues
     /// TODO: Fix GDAL integration
     #[allow(dead_code)]
-    pub fn to_gpkg<P: AsRef<Path>>(&self, _filepath: P, _name: Option<&str>) -> Result<()> {
-        anyhow::bail!("GPKG export is temporarily disabled. Use to_polars_df() instead.");
+    pub fn to_geojson<P: AsRef<Path>>(&self, _filepath: P, _name: Option<&str>) -> Result<()> {
+        anyhow::bail!("GeoJSON export is temporarily disabled. Use to_polars_df() instead.");
         /*
         use gdal::vector::{Geometry, OGRFieldType};
         use std::ffi::CString;
@@ -919,16 +919,16 @@ impl BuildingCollection {
         let layer_name = name.unwrap_or("batiments");
 
         // Get or create driver
-        let driver = DriverManager::get_driver_by_name("GPKG")
-            .context("GPKG driver not available")?;
+        let driver = DriverManager::get_driver_by_name("GeoJSON")
+            .context("GeoJSON driver not available")?;
 
         // Create or open dataset
         let mut dataset = if filepath.exists() {
             Dataset::open(filepath)
-                .context("Failed to open existing GPKG file")?
+                .context("Failed to open existing GeoJSON file")?
         } else {
             driver.create(filepath)
-                .context("Failed to create GPKG file")?
+                .context("Failed to create GeoJSON file")?
         };
 
         // Create layer

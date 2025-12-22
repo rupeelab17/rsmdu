@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rsmdu_core::geometric::cadastre::Cadastre;
+use rsmdu::geometric::cadastre::Cadastre;
 
 /// Example: Loading Cadastre (parcel) data from IGN API
 /// Following Python example from pymdu.geometric.Cadastre
@@ -39,10 +39,10 @@ fn main() -> Result<()> {
         }
     }
 
-    // Save to GPKG
-    // Python: cadastre.to_gpkg(name="cadastre")
-    println!("\nSauvegarde en GPKG...");
-    cadastre_result.to_gpkg(None)?;
+    // Save to GeoJSON
+    // Python: cadastre.to_geojson(name="cadastre")
+    println!("\nSauvegarde en GeoJSON...");
+    cadastre_result.to_geojson(None)?;
 
     println!("\n✅ Traitement terminé!");
     println!("  - Fichier de sortie: {:?}", cadastre_result.get_output_path());

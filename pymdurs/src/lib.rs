@@ -3,7 +3,8 @@ use pyo3::prelude::*;
 mod bindings;
 
 use bindings::{
-    PyBoundingBox, PyBuilding, PyCadastre, PyDem, PyGeoCore, PyIris, PyLandCover, PyLcz, PyLidar,
+    PyBoundingBox, PyBuilding, PyCadastre, PyDem, PyGeoCore, PyIris, PyLcz, PyLidar, PyRnb, PyRoad,
+    PyVegetation, PyWater,
 };
 
 /// Python bindings for pymdurs
@@ -19,7 +20,10 @@ fn pymdurs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     geometric.add_class::<PyIris>()?;
     geometric.add_class::<PyLcz>()?;
     geometric.add_class::<PyLidar>()?;
-    geometric.add_class::<PyLandCover>()?;
+    geometric.add_class::<PyRoad>()?;
+    geometric.add_class::<PyRnb>()?;
+    geometric.add_class::<PyVegetation>()?;
+    geometric.add_class::<PyWater>()?;
     // Add aliases for Pythonic API (Building instead of PyBuilding)
     geometric.setattr("Building", geometric.getattr("PyBuilding")?)?;
     geometric.setattr("Dem", geometric.getattr("PyDem")?)?;
@@ -27,7 +31,10 @@ fn pymdurs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     geometric.setattr("Iris", geometric.getattr("PyIris")?)?;
     geometric.setattr("Lcz", geometric.getattr("PyLcz")?)?;
     geometric.setattr("Lidar", geometric.getattr("PyLidar")?)?;
-    geometric.setattr("LandCover", geometric.getattr("PyLandCover")?)?;
+    geometric.setattr("Road", geometric.getattr("PyRoad")?)?;
+    geometric.setattr("Rnb", geometric.getattr("PyRnb")?)?;
+    geometric.setattr("Vegetation", geometric.getattr("PyVegetation")?)?;
+    geometric.setattr("Water", geometric.getattr("PyWater")?)?;
     m.add_submodule(&geometric)?;
 
     m.add_class::<PyBoundingBox>()?;

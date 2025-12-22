@@ -1,7 +1,7 @@
-use rsmdu::geometric::building::BuildingCollection;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyList};
+use rsmdu::geometric::building::BuildingCollection;
 
 use crate::bindings::bounding_box::PyBoundingBox;
 use crate::bindings::geo_core::PyGeoCore;
@@ -179,6 +179,22 @@ impl PyBuilding {
             Ok(collection) => Ok(PyBuilding { inner: collection }),
             Err(e) => Err(PyValueError::new_err(format!(
                 "Failed to load from IGN API: {}",
+                e
+            ))),
+        }
+    }
+
+    /// Get GeoJSON (equivalent to to_gdf() in Python)
+    fn get_geojson(&self, py: Python) -> PyResult<Py<PyAny>> {
+        match self.inner.get_geojson() {
+            Ok(geojson) => {
+                let json_str = geojson.to_string();
+                let json = py.import("json")?;
+                let geojson_dict: pyo3::Bound<PyAny> = json.call_method1("loads", (json_str,))?;
+                Ok(geojson_dict.unbind())
+            }
+            Err(e) => Err(PyValueError::new_err(format!(
+                "Failed to get GeoJSON: {}",
                 e
             ))),
         }

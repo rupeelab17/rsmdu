@@ -1,24 +1,24 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use rsmdu::geometric::cadastre::Cadastre;
+use rsmdu::geometric::rnb::Rnb;
 
 use crate::bindings::geo_core::PyGeoCore;
 
-/// Cadastre Python binding
+/// RNB Python binding
 #[pyclass]
-pub struct PyCadastre {
-    inner: Cadastre,
+pub struct PyRnb {
+    inner: Rnb,
 }
 
 #[pymethods]
-impl PyCadastre {
+impl PyRnb {
     #[new]
     #[pyo3(signature = (output_path = None))]
     fn new(output_path: Option<String>) -> PyResult<Self> {
-        match Cadastre::new(output_path) {
-            Ok(cadastre) => Ok(PyCadastre { inner: cadastre }),
+        match Rnb::new(output_path) {
+            Ok(rnb) => Ok(PyRnb { inner: rnb }),
             Err(e) => Err(PyValueError::new_err(format!(
-                "Failed to create Cadastre: {}",
+                "Failed to create Rnb: {}",
                 e
             ))),
         }
@@ -34,12 +34,12 @@ impl PyCadastre {
         self.inner.set_crs(epsg);
     }
 
-    /// Run cadastre processing: download from IGN API, parse GeoJSON
+    /// Run RNB processing: fetch from RNB API, parse JSON, create GeoJSON
     fn run(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
         // Use run_internal which works on &mut self
         slf.inner
             .run_internal()
-            .map_err(|e| PyValueError::new_err(format!("Failed to run Cadastre: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Failed to run Rnb: {}", e)))?;
         Ok(slf)
     }
 
@@ -59,12 +59,12 @@ impl PyCadastre {
         }
     }
 
-    /// Save to GeoJSON file
+    /// Save to GPKG file
     #[pyo3(signature = (name = None))]
     fn to_geojson(&self, name: Option<&str>) -> PyResult<()> {
         self.inner
             .to_geojson(name)
-            .map_err(|e| PyValueError::new_err(format!("Failed to save GeoJSON: {}", e)))
+            .map_err(|e| PyValueError::new_err(format!("Failed to save GPKG: {}", e)))
     }
 
     /// Get output path

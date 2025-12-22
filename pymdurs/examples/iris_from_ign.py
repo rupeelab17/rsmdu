@@ -6,7 +6,7 @@ This example demonstrates how to:
 2. Set a bounding box
 3. Download IRIS from IGN API
 4. Get GeoJSON data
-5. Save to GPKG file
+5. Save to GeoJSON file
 """
 
 import json
@@ -46,9 +46,9 @@ def main():
     else:
         print("✅ IRIS data loaded")
 
-    # Save to GPKG
-    print("💾 Saving to GPKG...")
-    iris.to_gpkg(name="iris")
+    # Save to GeoJSON
+    print("💾 Saving to GeoJSON...")
+    iris.to_geojson(name="iris")
 
     print(f"✅ IRIS processing complete!")
     print(f"📁 Output path: {iris.get_output_path()}")

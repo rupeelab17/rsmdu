@@ -7,13 +7,37 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use zip::ZipArchive;
 
+use crate::geo_core::{BoundingBox, GeoCore};
 use gdal::spatial_ref::{CoordTransform, SpatialRef};
+use gdal::vector::Geometry as OgrGeometry;
 use gdal::vector::LayerAccess;
 use gdal::Dataset;
+use geo::algorithm::bounding_rect::BoundingRect;
 use geo::algorithm::intersects::Intersects;
-use geo::{Coord, Geometry as GeoGeometry, LineString, Polygon};
+use geo::{Geometry as GeoGeometry, Polygon};
+use geos::{CoordDimensions, CoordSeq, GResult, Geom, Geometry as GeosGeometry};
+use rstar::{RTree, RTreeObject, AABB};
 
-use crate::geo_core::{BoundingBox, GeoCore};
+/// Structure pour indexer les géométries avec rstar
+struct IndexedGeometry {
+    geom: GeoGeometry<f64>,
+    lcz_int: u8,
+    color: String,
+}
+
+impl RTreeObject for IndexedGeometry {
+    type Envelope = AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        // Calculer le bounding rect de la géométrie
+        if let Some(rect) = self.geom.bounding_rect() {
+            AABB::from_corners([rect.min().x, rect.min().y], [rect.max().x, rect.max().y])
+        } else {
+            // Fallback pour géométries sans bounding rect (ne devrait pas arriver)
+            AABB::from_corners([0.0, 0.0], [0.0, 0.0])
+        }
+    }
+}
 
 /// LCZ (Local Climate Zone) structure
 /// Following Python implementation from pymdu.geometric.Lcz
@@ -164,14 +188,28 @@ impl Lcz {
             .bbox
             .context("Bounding box must be set before running LCZ processing")?;
 
+        bbox.transform(4326, 2154)?;
+
+        println!("Bbox: {:?}", bbox);
+
         println!("Téléchargement du fichier ZIP depuis: {}", url);
 
         // 1. Télécharger et extraire le ZIP
-        let temp_dir = self.download_and_extract_zip(url)?;
-
+        //let temp_dir = self.download_and_extract_zip(url)?;
         // 2. Trouver le fichier .shp dans le dossier temporaire
-        let shp_path = self.find_shapefile(&temp_dir)?;
+        //let shp_path = self.find_shapefile(&temp_dir)?;
+        let shp_path = PathBuf::from("/Users/Boris/Downloads/pymdurs/pymdurs/examples/output/lcz-spot-2022-la-rochelle/LCZ_SPOT_2022_La Rochelle.shp");
+
         println!("Shapefile trouvé: {:?}", shp_path);
+
+        // 3. Convertir le shapefile en GeoJSON
+        // let geojson_path = temp_dir.path().join("lcz.geojson");
+        let geojson_path =
+            PathBuf::from("/Users/Boris/Downloads/pymdurs/pymdurs/examples/output/lcz_2.geojson");
+        self.shp_to_geojson(
+            shp_path.to_str().context("Invalid shapefile path")?,
+            geojson_path.to_str().context("Invalid GeoJSON path")?,
+        )?;
 
         // 3. Lire le shapefile avec GDAL
         let dataset = Dataset::open(&shp_path).context("Impossible d'ouvrir le shapefile")?;
@@ -186,18 +224,68 @@ impl Lcz {
             .context("Impossible d'obtenir le SRS source")?;
         let target_srs = SpatialRef::from_epsg(self.geo_core.epsg as u32)
             .context("Impossible de créer le SRS cible")?;
+        println!("Source SRS: {:?}", source_srs);
+        println!("Target SRS: {:?}", target_srs);
+
         let transform = CoordTransform::new(&source_srs, &target_srs)
             .context("Impossible de créer la transformation")?;
 
-        // 5. Créer le polygone bbox
-        let bbox_polygon = self.create_bbox_polygon(bbox);
+        // 5. Créer le polygone bbox en EPSG:2154
+        let bbox_polygon = self.create_bbox(bbox.min_x, bbox.min_y, bbox.max_x, bbox.max_y)?;
+        // Géométrie OGR depuis WKT
 
-        // 6. Traiter chaque feature
-        let mut features = Vec::new();
+        // Définition des CRS
+        let src = SpatialRef::from_epsg(4326)?;
+        let dst = SpatialRef::from_epsg(2154)?;
+        let wkt = bbox_polygon
+            .to_wkt()
+            .context("Failed to convert geometry to WKT")?;
 
+        let mut geom = OgrGeometry::from_wkt(&wkt)?;
+        geom.set_spatial_ref(src);
+
+        // geom.assign_spatial_ref(&src);
+        let geom2: OgrGeometry = geom.transform_to(&dst)?;
+        // Convertir en WKT pour l'affichage
+        if let Ok(wkt) = geom2.wkt() {
+            println!("Bbox polygon (WKT): {}", wkt);
+        }
+
+        // Convertir OGR Geometry en geo::Geometry pour l'intersection
+        let bbox_polygon_transformed = self.gdal_to_geo_geometry(&geom)?;
+        let bbox_polygon_geo = if let GeoGeometry::Polygon(p) = bbox_polygon_transformed {
+            p
+        } else {
+            anyhow::bail!("Expected polygon geometry")
+        };
+
+        // Obtenir le rectangle englobant pour le filtre spatial
+        let bbox_rect_filter = bbox_polygon_geo
+            .bounding_rect()
+            .context("Failed to get bounding rect for spatial filter")?;
+
+        let extent = layer.get_extent()?;
+        println!("{:?}", extent);
+        layer.set_spatial_filter_rect(
+            bbox_rect_filter.min().x,
+            bbox_rect_filter.min().y,
+            bbox_rect_filter.max().x,
+            bbox_rect_filter.max().y,
+        );
+        //layer.set_spatial_filter(&geom2);
+
+        // 6. Étape 1: Collecter et transformer toutes les géométries
+        let mut indexed_geometries = Vec::new();
+        let mut total_features = 0;
+        let mut with_geometry = 0;
+        let mut transformed = 0;
+        let mut converted = 0;
+
+        println!("Étape 1: Collecte et transformation des géométries...");
         for (idx, feature) in layer.features().enumerate() {
+            total_features += 1;
+
             // Lire lcz_int
-            // field() retourne Result<Option<FieldValue>, GdalError>, into_int() retourne Option<i32>
             let lcz_int = match feature.field("lcz_int") {
                 Ok(Some(field_value)) => field_value.into_int().unwrap_or(0) as u8,
                 Ok(None) | Err(_) => 0,
@@ -212,32 +300,78 @@ impl Lcz {
 
             // Lire et transformer la géométrie
             if let Some(geom_ref) = feature.geometry() {
-                // Cloner la géométrie pour pouvoir la transformer
+                with_geometry += 1;
                 let geom = geom_ref.clone();
                 // Reprojeter
                 if geom.transform(&transform).is_ok() {
-                    // Convertir en geo::Geometry puis GeoJSON
+                    transformed += 1;
+                    // Convertir en geo::Geometry
                     if let Ok(geo_geom) = self.gdal_to_geo_geometry(&geom) {
-                        // Intersection avec bbox
-                        if self.geometry_intersects_bbox(&geo_geom, &bbox_polygon) {
-                            // Convertir geo::Geometry en geojson::Geometry
-                            if let Ok(geojson_geom) = self.geo_to_geojson_geometry(&geo_geom) {
-                                let mut feature_json = Feature::from(geojson_geom);
-                                feature_json.set_property("lcz_int", lcz_int as i64);
-                                feature_json.set_property("color", color);
-                                features.push(feature_json);
-                            }
-                        }
+                        converted += 1;
+                        // Stocker pour indexation
+                        indexed_geometries.push(IndexedGeometry {
+                            geom: geo_geom,
+                            lcz_int,
+                            color,
+                        });
                     }
                 }
             }
 
             if idx % 1000 == 0 && idx > 0 {
-                println!("Traitement de {} features...", idx);
+                println!("  Traitement de {} features...", idx);
             }
         }
 
-        println!("Nombre de features après filtrage: {}", features.len());
+        println!("Statistiques de collecte:");
+        println!("  Total features: {}", total_features);
+        println!("  Avec géométrie: {}", with_geometry);
+        println!("  Transformées: {}", transformed);
+        println!("  Converties et indexées: {}", converted);
+
+        // 7. Étape 2: Construire l'index spatial RTree
+        println!("Étape 2: Construction de l'index spatial RTree...");
+        let tree = RTree::bulk_load(indexed_geometries);
+        println!("  Index construit avec {} géométries", tree.size());
+
+        // 8. Étape 3: Requête spatiale rapide avec le bbox
+        println!("Étape 3: Requête spatiale avec le bbox...");
+        let bbox_rect = bbox_polygon_geo
+            .bounding_rect()
+            .context("Failed to get bounding rect from polygon")?;
+        let envelope = AABB::from_corners(
+            [bbox_rect.min().x, bbox_rect.min().y],
+            [bbox_rect.max().x, bbox_rect.max().y],
+        );
+        println!("Envelope: {:?}", envelope);
+
+        let candidates: Vec<_> = tree.locate_in_envelope_intersecting(&envelope).collect();
+        let num_candidates = candidates.len();
+        println!("  {} candidats trouvés dans l'enveloppe", num_candidates);
+
+        // 9. Étape 4: Test d'intersection exacte sur les candidats
+        println!("Étape 4: Test d'intersection exacte...");
+        let mut features = Vec::new();
+        let mut exact_intersections = 0;
+
+        for indexed_geom in &candidates {
+            // Test d'intersection exacte avec le polygone bbox
+            if bbox_polygon_geo.intersects(&indexed_geom.geom) {
+                exact_intersections += 1;
+                // Convertir geo::Geometry en geojson::Geometry
+                if let Ok(geojson_geom) = self.geo_to_geojson_geometry(&indexed_geom.geom) {
+                    let mut feature_json = Feature::from(geojson_geom);
+                    feature_json.set_property("lcz_int", indexed_geom.lcz_int as i64);
+                    feature_json.set_property("color", indexed_geom.color.clone());
+                    features.push(feature_json);
+                }
+            }
+        }
+
+        println!("Statistiques finales:");
+        println!("  Candidats dans l'enveloppe: {}", num_candidates);
+        println!("  Intersections exactes: {}", exact_intersections);
+        println!("  Features finales: {}", features.len());
 
         // 7. Créer le GeoJSON FeatureCollection
         let feature_collection = geojson::FeatureCollection {
@@ -246,6 +380,7 @@ impl Lcz {
             features,
         };
         self.geojson = Some(GeoJson::from(feature_collection));
+        layer.clear_spatial_filter();
 
         Ok(())
     }
@@ -258,6 +393,7 @@ impl Lcz {
 
         // Créer un dossier temporaire
         let temp_dir = TempDir::new().context("Impossible de créer un dossier temporaire")?;
+        println!("Dossier temporaire créé: {:?}", temp_dir.path());
 
         // Extraire le ZIP
         let cursor = Cursor::new(bytes);
@@ -304,33 +440,47 @@ impl Lcz {
         anyhow::bail!("Aucun fichier .shp trouvé dans l'archive")
     }
 
-    /// Create bbox polygon
-    fn create_bbox_polygon(&self, bbox: BoundingBox) -> Polygon<f64> {
-        Polygon::new(
-            LineString::from(vec![
-                Coord {
-                    x: bbox.min_x,
-                    y: bbox.min_y,
-                },
-                Coord {
-                    x: bbox.max_x,
-                    y: bbox.min_y,
-                },
-                Coord {
-                    x: bbox.max_x,
-                    y: bbox.max_y,
-                },
-                Coord {
-                    x: bbox.min_x,
-                    y: bbox.max_y,
-                },
-                Coord {
-                    x: bbox.min_x,
-                    y: bbox.min_y,
-                },
-            ]),
-            vec![],
-        )
+    fn create_bbox(&self, xmin: f64, ymin: f64, xmax: f64, ymax: f64) -> GResult<GeosGeometry> {
+        // 5 points (fermeture du polygone), 2 dimensions (x, y)
+        let mut coords = CoordSeq::new(5, CoordDimensions::TwoD)?;
+
+        coords.set_x(0, xmin)?;
+        coords.set_y(0, ymin)?;
+        coords.set_x(1, xmax)?;
+        coords.set_y(1, ymin)?;
+        coords.set_x(2, xmax)?;
+        coords.set_y(2, ymax)?;
+        coords.set_x(3, xmin)?;
+        coords.set_y(3, ymax)?;
+        coords.set_x(4, xmin)?;
+        coords.set_y(4, ymin)?;
+
+        let ring = GeosGeometry::create_linear_ring(coords)?;
+        let polygon = GeosGeometry::create_polygon(ring, vec![])?;
+        Ok(polygon)
+    }
+
+    fn shp_to_geojson(&self, input: &str, output: &str) -> Result<()> {
+        // Use ogr2ogr command-line tool for reliable shapefile to GeoJSON conversion
+        // This is more reliable than using the GDAL Rust bindings directly
+        // which have complex API requirements for vector dataset creation
+        use std::process::Command;
+
+        let status = Command::new("ogr2ogr")
+            .arg("-f")
+            .arg("GeoJSON")
+            .arg(output)
+            .arg(input)
+            .status()
+            .context(
+                "Failed to execute ogr2ogr. Make sure GDAL is installed and ogr2ogr is in PATH",
+            )?;
+
+        if !status.success() {
+            anyhow::bail!("ogr2ogr failed to convert shapefile to GeoJSON");
+        }
+
+        Ok(())
     }
 
     /// Convert GDAL geometry to geo::Geometry
@@ -339,7 +489,6 @@ impl Lcz {
         let wkt = geom.wkt().context("Failed to get WKT from GDAL geometry")?;
 
         // Parse WKT using geos
-        use geos::Geometry as GeosGeometry;
         let geos_geom =
             GeosGeometry::new_from_wkt(&wkt).context("Failed to parse WKT with GEOS")?;
 
@@ -367,13 +516,13 @@ impl Lcz {
 
     /// Get the GeoJSON (equivalent to to_gdf() in Python)
     /// Following Python: def to_gdf(self) -> gpd.GeoDataFrame
-    pub fn get_geojson(&self) -> Option<&GeoJson> {
+    pub fn geojson(&self) -> Option<&GeoJson> {
         self.geojson.as_ref()
     }
 
-    /// Save to GPKG file
-    /// Following Python: def to_gpkg(self, name: str = "lcz")
-    pub fn to_gpkg(&self, name: Option<&str>) -> Result<()> {
+    /// Save to GeoJSON file
+    /// Following Python: def to_geojson(self, name: str = "lcz")
+    pub fn to_geojson(&self, name: Option<&str>) -> Result<()> {
         let geojson = self
             .geojson
             .as_ref()
@@ -381,14 +530,14 @@ impl Lcz {
 
         let name = name.unwrap_or("lcz");
 
-        // Save as GeoJSON for now (GPKG export is complex with GDAL Rust bindings)
+        // Save as GeoJSON for now (GeoJSON export is complex with GDAL Rust bindings)
         let output_file = self.output_path.join(format!("{}.geojson", name));
         let geojson_str = geojson.to_string();
         std::fs::write(&output_file, geojson_str)
             .context(format!("Failed to write GeoJSON file: {:?}", output_file))?;
 
         println!(
-            "LCZ saved to: {:?} (as GeoJSON - GPKG export temporarily disabled)",
+            "LCZ saved to: {:?} (as GeoJSON - GeoJSON export temporarily disabled)",
             output_file
         );
 

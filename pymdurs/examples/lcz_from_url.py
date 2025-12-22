@@ -6,7 +6,7 @@ This example demonstrates how to:
 2. Set a bounding box
 3. Load LCZ data from zip URL
 4. Get GeoJSON data
-5. Save to GPKG file
+5. Save to GeoJSON file
 """
 
 import pymdurs
@@ -22,6 +22,7 @@ def main():
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
     lcz.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
 
+    lcz.set_bbox(46.181627, -1.152704, 46.18699, -1.139893)
     # Set CRS (optional, defaults to EPSG:2154)
     lcz.set_crs(2154)
 
@@ -44,15 +45,15 @@ def main():
 
     # Get GeoJSON (equivalent to to_gdf() in Python)
     print("📊 Getting GeoJSON data...")
-    geojson = lcz.get_geojson()
+    geojson = lcz.geojson()
 
     if geojson and "features" in geojson:
         num_features = len(geojson["features"])
         print(f"✅ Loaded {num_features} LCZ zones")
 
-        # Save to GPKG
-        print("💾 Saving to GPKG...")
-        lcz.to_gpkg(name="lcz")
+        # Save to GeoJSON
+        print("💾 Saving to GeoJSON...")
+        lcz.to_geojson(name="lcz")
     else:
         print("⚠️  LCZ processing not yet fully implemented")
         print("   Full implementation requires:")

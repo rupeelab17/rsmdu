@@ -87,7 +87,7 @@ lcov.info
 
 # Output files
 /output/
-*.gpkg
+*.GeoJSON
 *.shp
 *.shx
 *.dbf
@@ -120,7 +120,7 @@ lcov.info
 *.backup
 *~
 
-py-pymdurs/examples/output/
-py-pymdurs/examples/temp/
-pymdurs-core/examples/output/
-pymdurs-core/examples/temp/
+pymdurs/examples/output/
+pymdurs/examples/temp/
+pymdurs/examples/output/
+pymdurs/examples/temp/

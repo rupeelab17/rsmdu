@@ -261,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dem_set_Bbox() {
+    fn test_dem_set_bbox() {
         let mut dem = Dem::new(None).unwrap();
         dem.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699);
         assert!(dem.bbox.is_some());

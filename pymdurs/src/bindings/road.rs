@@ -1,24 +1,24 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use rsmdu::geometric::cadastre::Cadastre;
+use rsmdu::geometric::road::Road;
 
 use crate::bindings::geo_core::PyGeoCore;
 
-/// Cadastre Python binding
+/// Road Python binding
 #[pyclass]
-pub struct PyCadastre {
-    inner: Cadastre,
+pub struct PyRoad {
+    inner: Road,
 }
 
 #[pymethods]
-impl PyCadastre {
+impl PyRoad {
     #[new]
     #[pyo3(signature = (output_path = None))]
     fn new(output_path: Option<String>) -> PyResult<Self> {
-        match Cadastre::new(output_path) {
-            Ok(cadastre) => Ok(PyCadastre { inner: cadastre }),
+        match Road::new(output_path) {
+            Ok(road) => Ok(PyRoad { inner: road }),
             Err(e) => Err(PyValueError::new_err(format!(
-                "Failed to create Cadastre: {}",
+                "Failed to create Road: {}",
                 e
             ))),
         }
@@ -34,12 +34,12 @@ impl PyCadastre {
         self.inner.set_crs(epsg);
     }
 
-    /// Run cadastre processing: download from IGN API, parse GeoJSON
+    /// Run road processing: download from IGN API, parse GeoJSON
     fn run(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
         // Use run_internal which works on &mut self
         slf.inner
             .run_internal()
-            .map_err(|e| PyValueError::new_err(format!("Failed to run Cadastre: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("Failed to run Road: {}", e)))?;
         Ok(slf)
     }
 
@@ -80,3 +80,4 @@ impl PyCadastre {
         }
     }
 }
+

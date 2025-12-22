@@ -27,13 +27,13 @@ This project transpiles the Python pymdu library to Rust, using the [GeoRust](ht
 
 - **Cadastre collection**: Download cadastral parcel data from IGN API via WFS
 - **GeoJSON parsing**: Automatic parsing of IGN API responses
-- **GPKG export**: Save cadastral data to GeoPackage format
+- **GeoJSON export**: Save cadastral data to GeoPackage format
 
 ### IRIS Statistical Units
 
 - **IRIS collection**: Download IRIS (statistical units) data from IGN API via WFS
 - **GeoJSON parsing**: Automatic parsing of IGN API responses
-- **GPKG export**: Save IRIS data to GeoPackage format
+- **GeoJSON export**: Save IRIS data to GeoPackage format
 
 ### LCZ (Local Climate Zone)
 
@@ -107,7 +107,7 @@ pymdurs/
 - **geojson** (0.24): GeoJSON parsing and serialization
 - **geos** (10.0): Advanced geometric operations
 - **proj** (0.28): Coordinate reference system transformations
-- **gdal** (0.15): Geospatial file I/O (Shapefile, GeoJSON, GPKG)
+- **gdal** (0.15): Geospatial file I/O (Shapefile, GeoJSON, GeoJSON)
 - **geotiff** (0.1): GeoTIFF file reading and validation
 
 ### Data Processing
@@ -422,14 +422,14 @@ pub struct BuildingCollection {
 
 - ✅ GeoJSON parsing and generation
 - ✅ GeoTIFF reading and validation
-- ✅ GPKG export (simplified, saves as GeoJSON temporarily)
+- ✅ GeoJSON export (simplified, saves as GeoJSON temporarily)
 
 ### 🚧 In Progress / Limitations
 
 **Current Limitations:**
 
 - ⚠️ GDAL Shapefile I/O temporarily disabled (API compatibility issues)
-- ⚠️ Full GPKG export not yet implemented (saves as GeoJSON as workaround)
+- ⚠️ Full GeoJSON export not yet implemented (saves as GeoJSON as workaround)
 - ⚠️ LCZ shapefile loading from zip URLs requires full GDAL implementation
 - ⚠️ Raster reprojection simplified (full resampling not yet implemented)
 - ⚠️ Shapefile export for masks not yet available
@@ -437,7 +437,7 @@ pub struct BuildingCollection {
 **Workarounds:**
 
 - Use GeoJSON format instead of Shapefiles for input/output
-- GPKG export currently saves as GeoJSON (full GPKG support planned)
+- GeoJSON export currently saves as GeoJSON (full GeoJSON support planned)
 - LCZ processing structure ready but full shapefile loading pending GDAL fixes
 
 ### 📋 Planned Features
@@ -445,7 +445,7 @@ pub struct BuildingCollection {
 **Short-term:**
 
 - Complete GDAL integration for Shapefile I/O
-- Full GPKG export with proper layer management
+- Full GeoJSON export with proper layer management
 - Full raster reprojection with resampling options
 - LCZ shapefile loading from zip URLs
 

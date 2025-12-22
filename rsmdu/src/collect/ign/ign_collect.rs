@@ -448,21 +448,15 @@ impl IgnCollect {
             std::fs::write(&output_path, &content_bytes)
                 .context(format!("Failed to write file: {:?}", output_path))?;
 
-            // Validate that it's a valid GeoTIFF using geotiff crate
-            // Open file for reading
-            let file = File::open(&output_path).context(format!(
-                "Failed to open file for validation: {:?}",
-                output_path
-            ))?;
-
-            match geotiff::GeoTiff::read(file) {
-                Ok(_reader) => {
+            // Validate that it's a valid GeoTIFF using GDAL (more reliable than geotiff crate)
+            // GDAL can read a wider variety of GeoTIFF formats
+            match gdal::Dataset::open(&output_path) {
+                Ok(_dataset) => {
                     println!("Saved and validated GeoTIFF: {:?}", output_path);
-                    // The reader can be used to read values from the GeoTIFF if needed
                 }
                 Err(e) => {
                     eprintln!("Warning: File saved but GeoTIFF validation failed: {}", e);
-                    eprintln!("  File may still be valid but geotiff crate couldn't read it");
+                    eprintln!("  File may still be valid but GDAL couldn't read it");
                 }
             }
         }

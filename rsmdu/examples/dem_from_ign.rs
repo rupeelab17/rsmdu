@@ -12,7 +12,7 @@ fn main() -> Result<()> {
 
     // Set bounding box (La Rochelle, France)
     // Python: dem.Bbox = [-1.152704, 46.181627, -1.139893, 46.18699]
-    dem.set_Bbox(-1.152704, 46.181627, -1.139893, 46.18699);
+    dem.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699);
 
     println!("Bounding box définie:");
     println!("  - Longitude: -1.152704 à -1.139893");

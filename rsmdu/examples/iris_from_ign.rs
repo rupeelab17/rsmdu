@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rsmdu_core::geometric::iris::Iris;
+use rsmdu::geometric::iris::Iris;
 
 /// Example: Loading IRIS (statistical units) data from IGN API
 /// Following Python example from pymdu.geometric.Iris
@@ -39,10 +39,10 @@ fn main() -> Result<()> {
         }
     }
 
-    // Save to GPKG
-    // Python: iris.to_gpkg(name="iris")
-    println!("\nSauvegarde en GPKG...");
-    iris_result.to_gpkg(None)?;
+    // Save to GeoJSON
+    // Python: iris.to_geojson(name="iris")
+    println!("\nSauvegarde en GeoJSON...");
+    iris_result.to_geojson(None)?;
 
     println!("\n✅ Traitement terminé!");
     println!("  - Fichier de sortie: {:?}", iris_result.get_output_path());

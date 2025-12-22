@@ -6,7 +6,7 @@ This example demonstrates how to:
 2. Set a bounding box
 3. Download cadastre from IGN API
 4. Get GeoJSON data
-5. Save to GPKG file
+5. Save to GeoJSON file
 """
 
 import json
@@ -46,9 +46,9 @@ def main():
     else:
         print("✅ Cadastre data loaded")
 
-    # Save to GPKG
-    print("💾 Saving to GPKG...")
-    cadastre.to_gpkg(name="cadastre")
+    # Save to GeoJSON
+    print("💾 Saving to GeoJSON...")
+    cadastre.to_geojson(name="cadastre")
 
     print(f"✅ Cadastre processing complete!")
     print(f"📁 Output path: {cadastre.get_output_path()}")

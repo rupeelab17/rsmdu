@@ -85,8 +85,8 @@ cadastre = cadastre.run()
 # Get GeoJSON data (equivalent to to_gdf() in Python)
 geojson = cadastre.get_geojson()
 
-# Save to GPKG
-cadastre.to_gpkg(name="cadastre")
+# Save to GeoJSON
+cadastre.to_geojson(name="cadastre")
 ```
 
 ### IRIS (Statistical Units)
@@ -106,8 +106,8 @@ iris = iris.run()
 # Get GeoJSON data
 geojson = iris.get_geojson()
 
-# Save to GPKG
-iris.to_gpkg(name="iris")
+# Save to GeoJSON
+iris.to_geojson(name="iris")
 ```
 
 ### LCZ (Local Climate Zone)
@@ -130,8 +130,8 @@ geojson = lcz.get_geojson()
 # Get LCZ color table
 table_color = lcz.get_table_color()
 
-# Save to GPKG
-lcz.to_gpkg(name="lcz")
+# Save to GeoJSON
+lcz.to_geojson(name="lcz")
 ```
 
 **Note**: Both aliases (`Building`, `Dem`, `Cadastre`, `Iris`, `Lcz`, `BoundingBox`, `GeoCore`) and original names (`PyBuilding`, `PyDem`, `PyCadastre`, `PyIris`, `PyLcz`, `PyBoundingBox`, `PyGeoCore`) are available.

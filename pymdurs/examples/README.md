@@ -78,7 +78,7 @@ python examples/cadastre_from_ign.py
 - Définit une bounding box
 - Télécharge les parcelles cadastrales depuis l'API IGN via WFS
 - Parse le GeoJSON reçu
-- Sauvegarde en GPKG (ou GeoJSON temporairement)
+- Sauvegarde en GeoJSON (ou GeoJSON temporairement)
 
 ### 5. `iris_from_ign.py`
 
@@ -97,7 +97,7 @@ python examples/iris_from_ign.py
 - Définit une bounding box
 - Télécharge les unités IRIS depuis l'API IGN via WFS
 - Parse le GeoJSON reçu
-- Sauvegarde en GPKG (ou GeoJSON temporairement)
+- Sauvegarde en GeoJSON (ou GeoJSON temporairement)
 
 ### 6. `lcz_from_url.py`
 
@@ -117,7 +117,7 @@ python examples/lcz_from_url.py
 - Charge les données LCZ depuis une URL zip
 - Filtre par bounding box (overlay spatial)
 - Affiche la table de couleurs LCZ
-- Sauvegarde en GPKG (ou GeoJSON temporairement)
+- Sauvegarde en GeoJSON (ou GeoJSON temporairement)
 
 **Note**: L'implémentation complète de LCZ nécessite la lecture de shapefiles depuis des URLs zip et des opérations d'overlay spatial, qui sont en cours de développement.
 
