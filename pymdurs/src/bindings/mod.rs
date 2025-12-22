@@ -7,6 +7,7 @@ pub mod cadastre;
 pub mod dem;
 pub mod geo_core;
 pub mod iris;
+pub mod land_cover;
 pub mod lcz;
 pub mod lidar;
 
@@ -17,5 +18,6 @@ pub use cadastre::PyCadastre;
 pub use dem::PyDem;
 pub use geo_core::PyGeoCore;
 pub use iris::PyIris;
+pub use land_cover::PyLandCover;
 pub use lcz::PyLcz;
 pub use lidar::PyLidar;

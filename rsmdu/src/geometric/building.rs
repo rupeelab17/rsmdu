@@ -723,8 +723,6 @@ impl BuildingCollection {
     /// Returns a DataFrame with a "geometry" column containing EWKB bytes with SRID
     /// polars-st stores geometries as EWKB in Binary columns
     pub fn to_gdf(&self) -> Result<DataFrame> {
-        use geo::Geometry;
-        use geos::Geometry as GeosGeometry;
         use std::io::{Cursor, Read, Write};
 
         let mut height_vec: Vec<Option<f64>> = Vec::new();
@@ -850,6 +848,60 @@ impl BuildingCollection {
     /// Get a mutable reference to the buildings vector
     pub fn buildings_mut(&mut self) -> &mut Vec<Building> {
         &mut self.buildings
+    }
+
+    /// Get the GeoJSON (equivalent to to_gdf() in Python)
+    /// Following Python: def to_gdf(self) -> gpd.GeoDataFrame
+    /// Converts the building collection to a GeoJSON FeatureCollection
+    pub fn get_geojson(&self) -> Result<GeoJson> {
+        use geojson::{Feature, FeatureCollection};
+
+        let mut features = Vec::new();
+
+        for building in &self.buildings {
+            // Convert geo::Polygon to geojson::Geometry
+            // First convert to geo::Geometry, then to geojson::Geometry using reference
+            let geo_geom: geo::Geometry<f64> = building.footprint.clone().into();
+            let geometry: Geometry = (&geo_geom)
+                .try_into()
+                .context("Failed to convert polygon to GeoJSON geometry")?;
+
+            // Create feature with geometry
+            let mut feature = Feature::from(geometry);
+
+            // Add properties
+            if let Some(height) = building.height {
+                feature.set_property("hauteur", height);
+            }
+            feature.set_property("area", building.area);
+            feature.set_property("centroid_x", building.centroid.x());
+            feature.set_property("centroid_y", building.centroid.y());
+
+            if let Some(etages) = building.nombre_d_etages {
+                feature.set_property("nombre_d_etages", etages);
+            }
+
+            if let Some(h2) = building.hauteur_2 {
+                feature.set_property("HAUTEUR_2", h2);
+            }
+
+            feature.set_property("noHauteur", building.no_hauteur);
+
+            // Add metadata as properties
+            for (key, value) in &building.metadata {
+                feature.set_property(key, value.clone());
+            }
+
+            features.push(feature);
+        }
+
+        let feature_collection = FeatureCollection {
+            bbox: None,
+            foreign_members: None,
+            features,
+        };
+
+        Ok(GeoJson::from(feature_collection))
     }
 
     /// Export buildings to GPKG file
