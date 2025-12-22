@@ -6,22 +6,26 @@ description = "Rust transpilation of pymdu (Python Urban Data Model) - Core libr
 license.workspace = true
 authors.workspace = true
 
+[features]
+default = []
+wasm = []
+
 [dependencies]
 # GeoRust ecosystem
 geo = { version = "0.28", features = ["serde"] }
 geojson = "0.24"
-geos = { version = "10.0", features = ["geo"] }
-geotiff = "0.1"
-proj = "0.28"
-gdal = { version = "0.15", features = ["bindgen"] }
+geos = { version = "10.0", features = ["geo"], optional = true }
+geotiff = { version = "0.1", optional = true }
+proj = { version = "0.28", optional = true }
+gdal = { version = "0.15", features = ["bindgen"], optional = true }
 rstar = "0.12"
 
 # Data processing
-polars = { version = "0.51", features = ["lazy", "temporal", "strings"] }
+polars = { version = "0.51", features = ["lazy", "temporal", "strings"], optional = true }
 # wkb = "0.3"  # Not needed - using geos for WKB conversion instead
 
 # HTTP and serialization
-reqwest = { version = "0.12", features = ["json", "blocking"] }
+reqwest = { version = "0.12", features = ["json", "blocking"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -30,17 +34,17 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # Utilities
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"], optional = true }
 url = "2.5"
-csv = "1.3"
-quick-xml = { version = "0.31", features = ["serialize"] }
-encoding_rs = "0.8"
+csv = { version = "1.3", optional = true }
+quick-xml = { version = "0.31", features = ["serialize"], optional = true }
+encoding_rs = { version = "0.8", optional = true }
 urlencoding = "2.1"
-zip = "0.6"
-tempfile = "3.8"
+zip = { version = "0.6", optional = true }
+tempfile = { version = "3.8", optional = true }
 
 # LiDAR processing
-las = { version = "0.9", features = ["laz-parallel"] }
+las = { version = "0.9", features = ["laz-parallel"], optional = true }
 
 [[bin]]
 name = "rsmdu"

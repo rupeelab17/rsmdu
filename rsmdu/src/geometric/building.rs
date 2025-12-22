@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
+#[cfg(not(feature = "wasm"))]
 #[allow(unused_imports)]
 use gdal::vector::{Feature as GdalFeature, LayerAccess};
+#[cfg(not(feature = "wasm"))]
 #[allow(unused_imports)]
 use gdal::{Dataset, DriverManager};
 use geo::{Area, Centroid, Polygon};
@@ -10,11 +12,13 @@ use geojson::{Feature as GeoJsonFeature, GeoJson, Geometry};
 // // GeoPolars integration - geometry column is added as WKB bytes
 // TODO: Use GeoDataFrame when GeoPolars API is stable
 // use geopolars::geodataframe::GeoDataFrame;
+#[cfg(not(feature = "wasm"))]
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(not(feature = "wasm"))]
 use crate::collect::ign::ign_collect::IgnCollect;
 use crate::geo_core::{BoundingBox, GeoCore};
 
@@ -124,6 +128,7 @@ pub struct BuildingCollection {
     /// Optional shapefile path (Python: filepath_shp)
     pub filepath_shp: Option<String>,
     /// IgnCollect instance for API requests (Python: Building inherits from IgnCollect)
+    #[cfg(not(feature = "wasm"))]
     ign_collect: Option<IgnCollect>,
 }
 
@@ -154,10 +159,12 @@ impl BuildingCollection {
             default_storey_height,
             geo_core,
             filepath_shp,
+            #[cfg(not(feature = "wasm"))]
             ign_collect: None,
         };
 
         // Initialize IgnCollect if no shapefile provided (will be used for IGN API)
+        #[cfg(not(feature = "wasm"))]
         if collection.filepath_shp.is_none() {
             collection.ign_collect = Some(IgnCollect::new()?);
         }
@@ -179,6 +186,7 @@ impl BuildingCollection {
             default_storey_height: 3.0,
             geo_core,
             filepath_shp: None,
+            #[cfg(not(feature = "wasm"))]
             ign_collect: None,
         }
     }

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rsmdu-wasm - Building GeoJSON Viewer</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: #f8f9fa;
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .control-group input,
+        .control-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .control-group textarea {
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+        
+        .stats {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stats h3 {
+            margin-bottom: 0.75rem;
+            color: #495057;
+            font-size: 1rem;
+        }
+        
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .stats-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stats-label {
+            color: #6c757d;
+        }
+        
+        .stats-value {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .example-links {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .example-links a {
+            display: block;
+            color: #667eea;
+            text-decoration: none;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+        
+        .example-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏢 rsmdu-wasm - Building GeoJSON Viewer</h1>
+        <p>Visualisez et traitez des données de bâtiments GeoJSON avec WebAssembly</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="control-group">
+                <label for="geojson-input">GeoJSON Input (FeatureCollection)</label>
+                <textarea id="geojson-input" placeholder='{"type": "FeatureCollection", "features": [...]}'></textarea>
+            </div>
+            
+            <div class="control-group">
+                <label for="storey-height">Default Storey Height (meters)</label>
+                <input type="number" id="storey-height" value="3.0" step="0.1" min="0">
+            </div>
+            
+            <div class="control-group">
+                <h3 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: #495057;">Load from IGN API</h3>
+                <label for="bbox-min-x">Min Longitude (West)</label>
+                <input type="number" id="bbox-min-x" value="-1.152704" step="0.0001">
+                
+                <label for="bbox-min-y">Min Latitude (South)</label>
+                <input type="number" id="bbox-min-y" value="46.181627" step="0.0001">
+                
+                <label for="bbox-max-x">Max Longitude (East)</label>
+                <input type="number" id="bbox-max-x" value="-1.139893" step="0.0001">
+                
+                <label for="bbox-max-y">Max Latitude (North)</label>
+                <input type="number" id="bbox-max-y" value="46.18699" step="0.0001">
+            </div>
+            
+            <button id="load-ign-btn" onclick="loadBuildingsFromIgn()">Load from IGN API</button>
+            <button id="load-btn" onclick="loadBuildings()" style="margin-top: 0.5rem;">Load from GeoJSON</button>
+            
+            <div id="message"></div>
+            
+            <div id="stats" class="stats" style="display: none;">
+                <h3>Statistics</h3>
+                <div id="stats-content"></div>
+            </div>
+            
+            <div class="example-links">
+                <h3 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: #495057;">Example GeoJSON:</h3>
+                <a href="#" onclick="loadExample(); return false;">Load Example Building Data</a>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    
+    <!-- Load WASM module -->
+    <script type="module">
+        import init, { WasmBuildingCollection } from './pkg/rsmdu_wasm.js';
+        
+        let wasmModule = null;
+        let map = null;
+        let buildingLayer = null;
+        
+        // Initialize WASM
+        async function initWasm() {
+            try {
+                // Initialize WASM module (panic hook is set up automatically via #[wasm_bindgen(start)])
+                wasmModule = await init('./pkg/rsmdu_wasm_bg.wasm');
+                console.log('WASM module loaded successfully');
+                
+                // Initialize map
+                map = L.map('map').setView([46.16, -1.15], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                document.getElementById('load-btn').disabled = false;
+                document.getElementById('load-ign-btn').disabled = false;
+            } catch (error) {
+                showError('Failed to load WASM module: ' + error);
+                console.error(error);
+            }
+        }
+        
+        // Make functions available globally
+        window.initWasm = initWasm;
+        window.wasmModule = () => wasmModule;
+        window.map = () => map;
+        window.buildingLayer = () => buildingLayer;
+        window.setBuildingLayer = (layer) => { buildingLayer = layer; };
+        
+        // Load buildings from IGN API
+        window.loadBuildingsFromIgn = async function() {
+            if (!wasmModule) {
+                showError('WASM module not loaded yet');
+                return;
+            }
+            
+            const minX = parseFloat(document.getElementById('bbox-min-x').value);
+            const minY = parseFloat(document.getElementById('bbox-min-y').value);
+            const maxX = parseFloat(document.getElementById('bbox-max-x').value);
+            const maxY = parseFloat(document.getElementById('bbox-max-y').value);
+            const storeyHeight = parseFloat(document.getElementById('storey-height').value) || 3.0;
+            
+            if (isNaN(minX) || isNaN(minY) || isNaN(maxX) || isNaN(maxY)) {
+                showError('Please provide valid bounding box coordinates');
+                return;
+            }
+            
+            if (minX >= maxX || minY >= maxY) {
+                showError('Invalid bounding box: min values must be less than max values');
+                return;
+            }
+            
+            try {
+                showSuccess('Loading buildings from IGN API...');
+                document.getElementById('load-ign-btn').disabled = true;
+                
+                // Create building collection from IGN API
+                const collection = await WasmBuildingCollection.from_ign_api(
+                    minX,
+                    minY,
+                    maxX,
+                    maxY,
+                    storeyHeight
+                );
+                
+                // Process heights
+                collection.process_heights();
+                
+                // Get processed GeoJSON
+                const processedGeojson = collection.to_geojson();
+                const processedData = JSON.parse(processedGeojson);
+                
+                // Update stats
+                const stats = collection.get_stats();
+                updateStats(stats);
+                
+                // Display on map
+                displayOnMap(processedData);
+                
+                // Update GeoJSON input with loaded data
+                document.getElementById('geojson-input').value = JSON.stringify(processedData, null, 2);
+                
+                showSuccess(`Loaded ${collection.len()} buildings from IGN API successfully`);
+                
+                // Clean up
+                collection.free();
+            } catch (error) {
+                showError('Error loading from IGN API: ' + error);
+                console.error(error);
+            } finally {
+                document.getElementById('load-ign-btn').disabled = false;
+            }
+        };
+        
+        // Load buildings from GeoJSON
+        window.loadBuildings = function() {
+            if (!wasmModule) {
+                showError('WASM module not loaded yet');
+                return;
+            }
+            
+            const geojsonInput = document.getElementById('geojson-input').value.trim();
+            const storeyHeight = parseFloat(document.getElementById('storey-height').value) || 3.0;
+            
+            if (!geojsonInput) {
+                showError('Please provide GeoJSON data');
+                return;
+            }
+            
+            try {
+                // Parse input to validate JSON
+                const geojson = JSON.parse(geojsonInput);
+                
+                // Create building collection from GeoJSON
+                const collection = WasmBuildingCollection.from_geojson(
+                    JSON.stringify(geojson),
+                    storeyHeight
+                );
+                
+                // Process heights
+                collection.process_heights();
+                
+                // Get processed GeoJSON
+                const processedGeojson = collection.to_geojson();
+                const processedData = JSON.parse(processedGeojson);
+                
+                // Update stats
+                const stats = collection.get_stats();
+                updateStats(stats);
+                
+                // Display on map
+                displayOnMap(processedData);
+                
+                showSuccess(`Loaded ${collection.len()} buildings successfully`);
+                
+                // Clean up (optional - handled automatically by Rust's Drop)
+                // collection.free();
+            } catch (error) {
+                showError('Error processing buildings: ' + error);
+                console.error(error);
+            }
+        };
+        
+        // Display GeoJSON on map
+        function displayOnMap(geojson) {
+            // Remove existing layer
+            if (buildingLayer) {
+                map.removeLayer(buildingLayer);
+            }
+            
+            // Create new layer
+            buildingLayer = L.geoJSON(geojson, {
+                style: function(feature) {
+                    const height = feature.properties?.hauteur || 0;
+                    const color = height > 0 ? '#667eea' : '#adb5bd';
+                    return {
+                        color: color,
+                        weight: 2,
+                        opacity: 0.8,
+                        fillColor: color,
+                        fillOpacity: 0.3
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const props = feature.properties || {};
+                    const height = props.hauteur ? `${props.hauteur.toFixed(1)}m` : 'N/A';
+                    const area = props.area ? `${props.area.toFixed(1)} m²` : 'N/A';
+                    
+                    layer.bindPopup(`
+                        <strong>Building</strong><br>
+                        Height: ${height}<br>
+                        Area: ${area}<br>
+                        ${props.nombre_d_etages ? `Storeys: ${props.nombre_d_etages}<br>` : ''}
+                    `);
+                }
+            }).addTo(map);
+            
+            // Fit map to bounds
+            if (buildingLayer.getBounds().isValid()) {
+                map.fitBounds(buildingLayer.getBounds());
+            }
+            
+            window.setBuildingLayer(buildingLayer);
+        }
+        
+        // Update statistics display
+        function updateStats(stats) {
+            const statsDiv = document.getElementById('stats');
+            const statsContent = document.getElementById('stats-content');
+            
+            statsContent.innerHTML = `
+                <div class="stats-item">
+                    <span class="stats-label">Total Buildings:</span>
+                    <span class="stats-value">${stats.count}</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Total Area:</span>
+                    <span class="stats-value">${stats.total_area.toFixed(2)} m²</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Mean Height:</span>
+                    <span class="stats-value">${stats.mean_height.toFixed(2)} m</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">With Height:</span>
+                    <span class="stats-value">${stats.buildings_with_height}</span>
+                </div>
+            `;
+            
+            statsDiv.style.display = 'block';
+        }
+        
+        // Show error message
+        function showError(message) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'error';
+            messageDiv.textContent = message;
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'success';
+            messageDiv.textContent = message;
+        }
+        
+        // Load example data
+        window.loadExample = function() {
+            const exampleGeoJSON = {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[-1.15, 46.16], [-1.14, 46.16], [-1.14, 46.17], [-1.15, 46.17], [-1.15, 46.16]]]
+                        },
+                        "properties": {
+                            "hauteur": 10.5,
+                            "nombre_d_etages": 3
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[-1.145, 46.165], [-1.135, 46.165], [-1.135, 46.175], [-1.145, 46.175], [-1.145, 46.165]]]
+                        },
+                        "properties": {
+                            "nombre_d_etages": 2
+                        }
+                    }
+                ]
+            };
+            
+            document.getElementById('geojson-input').value = JSON.stringify(exampleGeoJSON, null, 2);
+        };
+        
+        // Initialize on page load
+        initWasm();
+    </script>
+</body>
+</html>
+
