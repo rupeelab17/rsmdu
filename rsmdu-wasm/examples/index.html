@@ -218,17 +218,20 @@
             
             <div class="control-group">
                 <h3 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: #495057;">Load from IGN API</h3>
+                <p style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.75rem;">
+                    Bbox is automatically updated based on map view
+                </p>
                 <label for="bbox-min-x">Min Longitude (West)</label>
-                <input type="number" id="bbox-min-x" value="-1.152704" step="0.0001">
+                <input type="number" id="bbox-min-x" value="-1.152704" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
                 
                 <label for="bbox-min-y">Min Latitude (South)</label>
-                <input type="number" id="bbox-min-y" value="46.181627" step="0.0001">
+                <input type="number" id="bbox-min-y" value="46.181627" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
                 
                 <label for="bbox-max-x">Max Longitude (East)</label>
-                <input type="number" id="bbox-max-x" value="-1.139893" step="0.0001">
+                <input type="number" id="bbox-max-x" value="-1.139893" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
                 
                 <label for="bbox-max-y">Max Latitude (North)</label>
-                <input type="number" id="bbox-max-y" value="46.18699" step="0.0001">
+                <input type="number" id="bbox-max-y" value="46.18699" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
             </div>
             
             <button id="load-ign-btn" onclick="loadBuildingsFromIgn()">Load from IGN API</button>
@@ -265,6 +268,21 @@
         let map = null;
         let buildingLayer = null;
         
+        // Update bbox fields from map bounds
+        function updateBboxFromMap() {
+            if (!map) return;
+            
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest(); // Southwest corner
+            const ne = bounds.getNorthEast(); // Northeast corner
+            
+            // Update input fields
+            document.getElementById('bbox-min-x').value = sw.lng.toFixed(6);
+            document.getElementById('bbox-min-y').value = sw.lat.toFixed(6);
+            document.getElementById('bbox-max-x').value = ne.lng.toFixed(6);
+            document.getElementById('bbox-max-y').value = ne.lat.toFixed(6);
+        }
+        
         // Initialize WASM
         async function initWasm() {
             try {
@@ -278,6 +296,13 @@
                     attribution: '© OpenStreetMap contributors',
                     maxZoom: 19
                 }).addTo(map);
+                
+                // Update bbox when map moves or zooms
+                map.on('moveend', updateBboxFromMap);
+                map.on('zoomend', updateBboxFromMap);
+                
+                // Initial bbox update
+                updateBboxFromMap();
                 
                 document.getElementById('load-btn').disabled = false;
                 document.getElementById('load-ign-btn').disabled = false;
@@ -468,6 +493,16 @@
                     <span class="stats-label">Mean Height:</span>
                     <span class="stats-value">${stats.mean_height.toFixed(2)} m</span>
                 </div>
+                ${stats.buildings_with_height > 0 ? `
+                <div class="stats-item">
+                    <span class="stats-label">Min Height:</span>
+                    <span class="stats-value">${stats.min_height.toFixed(2)} m</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Max Height:</span>
+                    <span class="stats-value">${stats.max_height.toFixed(2)} m</span>
+                </div>
+                ` : ''}
                 <div class="stats-item">
                     <span class="stats-label">With Height:</span>
                     <span class="stats-value">${stats.buildings_with_height}</span>

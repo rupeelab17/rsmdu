@@ -1,6 +1,7 @@
 # Installing wasm32-unknown-unknown Target
 
 If you encounter the error:
+
 ```
 Error: wasm32-unknown-unknown target not found in sysroot
 ```
@@ -57,4 +58,3 @@ Or:
 ```bash
 rustc --print target-list | grep wasm32
 ```
-

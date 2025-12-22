@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEM GeoTIFF Viewer - Leaflet</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: #f8f9fa;
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .control-group input[type="file"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        
+        .control-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            background: white;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+        
+        .stats {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .stats h3 {
+            margin-bottom: 0.75rem;
+            color: #495057;
+            font-size: 1rem;
+        }
+        
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .stats-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stats-label {
+            color: #6c757d;
+        }
+        
+        .stats-value {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+            border: 1px solid #bee5eb;
+            font-size: 0.9rem;
+        }
+        
+        .legend {
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            min-width: 200px;
+        }
+        
+        .legend h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        
+        .color-scale {
+            height: 20px;
+            border-radius: 3px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗻 DEM GeoTIFF Viewer</h1>
+        <p>Visualisez des modèles numériques d'élévation avec rendu raster coloré</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="control-group">
+                <h3 style="margin-bottom: 0.5rem; font-size: 0.9rem; color: #495057;">Load from IGN API</h3>
+                <p style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.75rem;">
+                    Bbox is automatically updated based on map view
+                </p>
+                <label for="bbox-min-x">Min Longitude (West)</label>
+                <input type="number" id="bbox-min-x" value="-1.152704" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+                
+                <label for="bbox-min-y">Min Latitude (South)</label>
+                <input type="number" id="bbox-min-y" value="46.181627" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+                
+                <label for="bbox-max-x">Max Longitude (East)</label>
+                <input type="number" id="bbox-max-x" value="-1.139893" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+                
+                <label for="bbox-max-y">Max Latitude (North)</label>
+                <input type="number" id="bbox-max-y" value="46.18699" step="0.000001" readonly style="background-color: #f8f9fa; cursor: not-allowed;">
+            </div>
+            
+            <div class="control-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #dee2e6;">
+                <label for="tiff-file">Or Load DEM TIFF File</label>
+                <input type="file" id="tiff-file" accept=".tif,.tiff,.TIF,.TIFF">
+            </div>
+            
+            <div class="control-group">
+                <label for="colorscale">Palette de couleurs</label>
+                <select id="colorscale">
+                    <option value="viridis">Viridis (défaut)</option>
+                    <option value="plasma">Plasma</option>
+                    <option value="inferno">Inferno</option>
+                    <option value="magma">Magma</option>
+                    <option value="turbo">Turbo</option>
+                    <option value="rainbow">Arc-en-ciel</option>
+                    <option value="jet">Jet</option>
+                    <option value="hsv">HSV</option>
+                    <option value="hot">Hot</option>
+                    <option value="cool">Cool</option>
+                    <option value="spring">Spring</option>
+                    <option value="summer">Summer</option>
+                    <option value="autumn">Autumn</option>
+                    <option value="winter">Winter</option>
+                    <option value="bone">Bone</option>
+                    <option value="copper">Copper</option>
+                    <option value="greys">Greys</option>
+                    <option value="yignbu">YlGnBu</option>
+                    <option value="greens">Greens</option>
+                    <option value="yiorrd">YlOrRd</option>
+                    <option value="bluered">Bleu-Rouge</option>
+                    <option value="rdbu">RdBu</option>
+                    <option value="picnic">Picnic</option>
+                    <option value="portland">Portland</option>
+                    <option value="blackbody">Blackbody</option>
+                    <option value="earth">Earth</option>
+                    <option value="electric">Electric</option>
+                </select>
+            </div>
+            
+            <button id="load-btn" onclick="loadDemFile()">Charger et visualiser</button>
+            
+            <div id="message"></div>
+            
+            <div id="stats" class="stats" style="display: none;">
+                <h3>Statistiques du DEM</h3>
+                <div id="stats-content"></div>
+            </div>
+            
+            <div class="info" style="margin-top: 1rem;">
+                <strong>ℹ️ Instructions</strong>
+                <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                    <li>Chargez un fichier GeoTIFF DEM</li>
+                    <li>Le raster sera affiché avec des couleurs selon l'élévation</li>
+                    <li>Cliquez sur la carte pour obtenir l'élévation à un point</li>
+                    <li>Changez la palette de couleurs à tout moment</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="legend" class="legend" style="display: none;">
+                <h4>Élévation (m)</h4>
+                <div class="color-scale" id="color-scale"></div>
+                <div class="legend-labels">
+                    <span id="legend-min">0</span>
+                    <span id="legend-max">100</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    
+    <!-- GeoRaster and GeoRaster Layer for Leaflet -->
+    <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+    
+    <!-- Load WASM module -->
+    <script type="module">
+        import init, { WasmDem } from './pkg/rsmdu_wasm.js';
+        
+        let wasmModule = null;
+        
+        // Initialize WASM
+        async function initWasm() {
+            try {
+                wasmModule = await init('./pkg/rsmdu_wasm_bg.wasm');
+                console.log('WASM module loaded successfully');
+            } catch (error) {
+                console.error('Failed to load WASM module:', error);
+            }
+        }
+        
+        // Initialize WASM on load
+        initWasm();
+    </script>
+    
+    <script>
+        let map = null;
+        let demLayer = null;
+        let currentGeoraster = null;
+        let currentColorScale = 'viridis';
+        let osmLayer = null; // Store reference to OSM tile layer
+        
+        // Update bbox fields from map bounds
+        function updateBboxFromMap() {
+            if (!map) return;
+            
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest(); // Southwest corner
+            const ne = bounds.getNorthEast(); // Northeast corner
+            
+            // Update input fields
+            document.getElementById('bbox-min-x').value = sw.lng.toFixed(6);
+            document.getElementById('bbox-min-y').value = sw.lat.toFixed(6);
+            document.getElementById('bbox-max-x').value = ne.lng.toFixed(6);
+            document.getElementById('bbox-max-y').value = ne.lat.toFixed(6);
+        }
+        
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([46.16, -1.15], 13);
+            osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+                opacity: 1.0 // Full opacity by default
+            });
+            osmLayer.addTo(map);
+            
+            // Update bbox when map moves or zooms
+            map.on('moveend', updateBboxFromMap);
+            map.on('zoomend', updateBboxFromMap);
+            
+            // Initial bbox update
+            updateBboxFromMap();
+            
+            console.log('Map initialized');
+        }
+        
+        // Color scales mapping
+        const colorScales = {
+            viridis: ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde724'],
+            plasma: ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26', '#f0f921'],
+            inferno: ['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d03c', '#fcffa4'],
+            magma: ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#feca8d', '#fcfdbf'],
+            turbo: ['#30123b', '#4454c4', '#4990ff', '#1ac7ff', '#28e1a3', '#53fc51', '#aafc00', '#eac800', '#fb8022', '#c82326'],
+            rainbow: ['#9500ff', '#0000ff', '#00ffff', '#00ff00', '#ffff00', '#ff7f00', '#ff0000'],
+            jet: ['#00007f', '#0000ff', '#007fff', '#00ffff', '#7fff7f', '#ffff00', '#ff7f00', '#ff0000', '#7f0000'],
+            hot: ['#000000', '#ff0000', '#ffff00', '#ffffff'],
+            cool: ['#00ffff', '#ff00ff'],
+            earth: ['#0000a0', '#0058ff', '#00c8ff', '#00e090', '#50e050', '#fff000', '#ffa000', '#ff5000', '#c80000', '#a05028'],
+            greys: ['#000000', '#555555', '#aaaaaa', '#ffffff']
+        };
+        
+        // Generate gradient CSS for legend
+        function generateGradientCSS(colorScale) {
+            const colors = colorScales[colorScale] || colorScales.viridis;
+            return `linear-gradient(to right, ${colors.join(', ')})`;
+        }
+        
+        // Update legend
+        function updateLegend(min, max, colorScale) {
+            const legendDiv = document.getElementById('legend');
+            const colorScaleDiv = document.getElementById('color-scale');
+            const minLabel = document.getElementById('legend-min');
+            const maxLabel = document.getElementById('legend-max');
+            
+            colorScaleDiv.style.background = generateGradientCSS(colorScale);
+            minLabel.textContent = min.toFixed(1);
+            maxLabel.textContent = max.toFixed(1);
+            legendDiv.style.display = 'block';
+        }
+        
+        // Custom pixel value to color function
+        function pixelValuesToColorFn(values) {
+            if (!values || values.length === 0) {
+                return null; // Transparent for no data
+            }
+            
+            const value = values[0];
+            if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+                return null; // Transparent for no data
+            }
+            
+            if (!currentGeoraster || !currentGeoraster.mins || !currentGeoraster.maxs) {
+                return null;
+            }
+            
+            const min = currentGeoraster.mins[0];
+            const max = currentGeoraster.maxs[0];
+            
+            if (min === undefined || max === undefined || !isFinite(min) || !isFinite(max)) {
+                return null;
+            }
+            
+            // Handle case where min === max
+            if (min === max) {
+                const colors = colorScales[currentColorScale] || colorScales.viridis;
+                const color = colors[Math.floor(colors.length / 2)];
+                const r = parseInt(color.substr(1, 2), 16);
+                const g = parseInt(color.substr(3, 2), 16);
+                const b = parseInt(color.substr(5, 2), 16);
+                return `rgba(${r}, ${g}, ${b}, 1)`;
+            }
+            
+            // Normalize value to 0-1
+            const normalized = Math.max(0, Math.min(1, (value - min) / (max - min)));
+            
+            // Get color from scale
+            const colors = colorScales[currentColorScale] || colorScales.viridis;
+            const index = Math.floor(normalized * (colors.length - 1));
+            const color = colors[Math.min(index, colors.length - 1)];
+            
+            // Convert hex to RGB
+            const r = parseInt(color.substr(1, 2), 16);
+            const g = parseInt(color.substr(3, 2), 16);
+            const b = parseInt(color.substr(5, 2), 16);
+            
+            return `rgba(${r}, ${g}, ${b}, 1)`;
+        }
+        
+        // Load DEM (from IGN API or file)
+        async function loadDemFile() {
+            const fileInput = document.getElementById('tiff-file');
+            const file = fileInput.files[0];
+            
+            let arrayBuffer;
+            
+            // If no file selected, load from IGN API
+            if (!file) {
+                // Load from IGN API
+                const minX = parseFloat(document.getElementById('bbox-min-x').value);
+                const minY = parseFloat(document.getElementById('bbox-min-y').value);
+                const maxX = parseFloat(document.getElementById('bbox-max-x').value);
+                const maxY = parseFloat(document.getElementById('bbox-max-y').value);
+                
+                if (isNaN(minX) || isNaN(minY) || isNaN(maxX) || isNaN(maxY)) {
+                    showError('Please provide valid bounding box coordinates or select a file');
+                    return;
+                }
+                
+                if (minX >= maxX || minY >= maxY) {
+                    showError('Invalid bounding box: min values must be less than max values');
+                    return;
+                }
+                
+                try {
+                    showSuccess('Loading DEM from IGN API...');
+                    document.getElementById('load-btn').disabled = true;
+                    
+                    // Fetch directly from IGN API using fetch
+                    const layer = "ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES";
+                    const base_url = "https://data.geopf.fr/wms-r";
+                    const width = 512;
+                    const height = 512;
+                    // Format bbox for WMS 1.3.0 with EPSG:4326: ymin, xmin, ymax, xmax
+                    const bbox_str = `${minY},${minX},${maxY},${maxX}`;
+                    
+                    const request_url = `${base_url}?LAYERS=${layer}&FORMAT=image/geotiff&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS=EPSG:4326&Bbox=${bbox_str}&WIDTH=${width}&HEIGHT=${height}`;
+                    
+                    const response = await fetch(request_url);
+                    if (!response.ok) {
+                        throw new Error(`IGN API error: ${response.status}`);
+                    }
+                    
+                    arrayBuffer = await response.arrayBuffer();
+                    
+                } catch (error) {
+                    showError('Error loading DEM from IGN API: ' + error.message);
+                    console.error(error);
+                    document.getElementById('load-btn').disabled = false;
+                    return;
+                }
+            } else {
+                // Load from file
+                try {
+                    showSuccess('Chargement du DEM...');
+                    document.getElementById('load-btn').disabled = true;
+                    
+                    // Read file as ArrayBuffer
+                    arrayBuffer = await file.arrayBuffer();
+                } catch (error) {
+                    showError('Erreur lors de la lecture du fichier: ' + error.message);
+                    console.error(error);
+                    document.getElementById('load-btn').disabled = false;
+                    return;
+                }
+            }
+            
+            try {
+                // Parse GeoTIFF using georaster
+                const georaster = await parseGeoraster(arrayBuffer);
+                console.log('GeoRaster parsed:', georaster);
+                console.log('GeoRaster properties:', {
+                    width: georaster.width,
+                    height: georaster.height,
+                    xmin: georaster.xmin,
+                    ymin: georaster.ymin,
+                    xmax: georaster.xmax,
+                    ymax: georaster.ymax,
+                    mins: georaster.mins,
+                    maxs: georaster.maxs,
+                    numberOfRasters: georaster.numberOfRasters,
+                    projection: georaster.projection,
+                    srs: georaster.srs,
+                    crs: georaster.crs,
+                    noDataValue: georaster.noDataValue,
+                    pixelWidth: georaster.pixelWidth,
+                    pixelHeight: georaster.pixelHeight
+                });
+                
+                // Validate georaster
+                if (!georaster || !georaster.width || !georaster.height) {
+                    throw new Error('Invalid GeoRaster: missing width or height');
+                }
+                
+                if (!georaster.mins || !georaster.maxs || georaster.mins.length === 0) {
+                    throw new Error('Invalid GeoRaster: missing min/max values');
+                }
+                
+                // Ensure projection is set (default to EPSG:4326 if not present)
+                // GeoRasterLayer expects projection as a number (EPSG code)
+                if (!georaster.projection) {
+                    console.warn('GeoRaster has no projection property, checking srs/crs...');
+                    // Try to get from srs or crs
+                    if (georaster.srs) {
+                        const srsMatch = georaster.srs.toString().match(/EPSG:?(\d+)/i);
+                        if (srsMatch) {
+                            georaster.projection = parseInt(srsMatch[1]);
+                            console.log('Found projection from srs:', georaster.projection);
+                        }
+                    } else if (georaster.crs) {
+                        const crsMatch = georaster.crs.toString().match(/EPSG:?(\d+)/i);
+                        if (crsMatch) {
+                            georaster.projection = parseInt(crsMatch[1]);
+                            console.log('Found projection from crs:', georaster.projection);
+                        }
+                    }
+                    
+                    // Default to EPSG:4326 if still not found
+                    if (!georaster.projection) {
+                        console.warn('Setting default projection to EPSG:4326');
+                        georaster.projection = 4326;
+                    }
+                } else {
+                    // Ensure projection is a number
+                    if (typeof georaster.projection === 'string') {
+                        const match = georaster.projection.match(/EPSG:?(\d+)/i);
+                        if (match) {
+                            georaster.projection = parseInt(match[1]);
+                        } else {
+                            georaster.projection = parseInt(georaster.projection) || 4326;
+                        }
+                    } else if (typeof georaster.projection !== 'number') {
+                        georaster.projection = 4326;
+                    }
+                }
+                
+                console.log('Final projection:', georaster.projection);
+                
+                currentGeoraster = georaster;
+                currentColorScale = document.getElementById('colorscale').value;
+                
+                // Display on map
+                displayGeoRaster(georaster);
+                
+                // Update statistics
+                updateStats(georaster);
+                
+                // Update legend
+                updateLegend(georaster.mins[0], georaster.maxs[0], currentColorScale);
+                
+                showSuccess(`DEM chargé: ${georaster.width}×${georaster.height} pixels`);
+                
+            } catch (error) {
+                showError('Erreur lors du chargement: ' + error.message);
+                console.error('Full error:', error);
+                console.error('Stack:', error.stack);
+            } finally {
+                document.getElementById('load-btn').disabled = false;
+            }
+        }
+        
+        // Display georaster on map
+        function displayGeoRaster(georaster) {
+            console.log('Displaying GeoRaster:', georaster);
+            console.log('Bounds:', {
+                xmin: georaster.xmin,
+                ymin: georaster.ymin,
+                xmax: georaster.xmax,
+                ymax: georaster.ymax
+            });
+            console.log('Stats:', {
+                min: georaster.mins[0],
+                max: georaster.maxs[0],
+                width: georaster.width,
+                height: georaster.height
+            });
+            
+            // Remove existing layer
+            if (demLayer) {
+                map.removeLayer(demLayer);
+                demLayer = null;
+            }
+            
+            // Restore OSM layer opacity when DEM is removed
+            if (osmLayer) {
+                osmLayer.setOpacity(1.0); // Restore full opacity
+                console.log('OSM layer opacity restored to 1.0');
+            }
+            
+            // Remove existing click handlers
+            map.off('click');
+            
+            // Create GeoRasterLayer
+            try {
+                // Ensure projection is set and is a number BEFORE creating the layer
+                // This is critical - GeoRasterLayer accesses projection during initialization
+                if (!georaster.projection || typeof georaster.projection !== 'number' || isNaN(georaster.projection)) {
+                    console.warn('Projection not set or invalid, using EPSG:4326');
+                    georaster.projection = 4326;
+                }
+                
+                // Double-check: ensure it's a valid number
+                if (typeof georaster.projection !== 'number' || isNaN(georaster.projection)) {
+                    georaster.projection = 4326;
+                }
+                
+                console.log('Creating GeoRasterLayer with projection:', georaster.projection, typeof georaster.projection);
+                console.log('GeoRaster bounds:', {
+                    xmin: georaster.xmin,
+                    ymin: georaster.ymin,
+                    xmax: georaster.xmax,
+                    ymax: georaster.ymax
+                });
+                console.log('GeoRaster projection property:', georaster.projection);
+                
+                // Create a wrapper to ensure projection is always accessible
+                // GeoRasterLayer may access projection asynchronously, so we need to ensure it's always defined
+                // Create a simple copy with all properties and a guaranteed projection
+                const georasterWithProjection = Object.assign({}, georaster);
+                
+                // Force projection to be a number, never undefined
+                const projectionValue = (typeof georaster.projection === 'number' && !isNaN(georaster.projection)) 
+                    ? georaster.projection 
+                    : 4326;
+                
+                // Set projection directly
+                georasterWithProjection.projection = projectionValue;
+                
+                // Also set srs and crs if they don't exist, as GeoRasterLayer might check these
+                if (!georasterWithProjection.srs) {
+                    georasterWithProjection.srs = `EPSG:${projectionValue}`;
+                }
+                if (!georasterWithProjection.crs) {
+                    georasterWithProjection.crs = `EPSG:${projectionValue}`;
+                }
+                
+                // Ensure projection is enumerable and accessible
+                Object.defineProperty(georasterWithProjection, 'projection', {
+                    value: projectionValue,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true
+                });
+                
+                console.log('GeoRaster wrapper projection:', georasterWithProjection.projection, typeof georasterWithProjection.projection);
+                console.log('Has projection property:', 'projection' in georasterWithProjection);
+                console.log('Projection value:', georasterWithProjection.projection);
+                console.log('SRS:', georasterWithProjection.srs);
+                console.log('CRS:', georasterWithProjection.crs);
+                
+                // Try passing georaster directly instead of a Promise
+                // Some versions of GeoRasterLayer work better with direct objects
+                try {
+                    demLayer = new GeoRasterLayer({
+                        georaster: georasterWithProjection,
+                        opacity: 1,
+                        pixelValuesToColorFn: pixelValuesToColorFn,
+                        resolution: 128, // Lower resolution for faster rendering
+                        updateWhenZooming: true,
+                        updateWhenIdle: true,
+                        keepBuffer: 2
+                    });
+                } catch (directError) {
+                    console.warn('Direct georaster failed, trying with Promise:', directError);
+                    // Fallback to Promise-based approach
+                    const georasterPromise = Promise.resolve(georasterWithProjection);
+                    demLayer = new GeoRasterLayer({
+                        georaster: georasterPromise,
+                        opacity: 1,
+                        pixelValuesToColorFn: pixelValuesToColorFn,
+                        resolution: 128,
+                        updateWhenZooming: true,
+                        updateWhenIdle: true,
+                        keepBuffer: 2
+                    });
+                }
+                
+                console.log('GeoRasterLayer created:', demLayer);
+                
+                // Add event listeners for debugging
+                demLayer.on('loading', () => console.log('GeoRasterLayer: loading'));
+                demLayer.on('load', () => console.log('GeoRasterLayer: loaded'));
+                demLayer.on('error', (e) => console.error('GeoRasterLayer error:', e));
+                
+                demLayer.addTo(map);
+                console.log('GeoRasterLayer added to map');
+                
+                // Reduce OSM layer opacity when DEM is displayed
+                if (osmLayer) {
+                    osmLayer.setOpacity(0.3); // Reduce to 30% opacity
+                    console.log('OSM layer opacity reduced to 0.3');
+                }
+                
+                // Force a redraw after a short delay
+                setTimeout(() => {
+                    if (demLayer && map.hasLayer(demLayer)) {
+                        console.log('GeoRasterLayer is on map, forcing redraw');
+                        map.invalidateSize();
+                    } else {
+                        console.warn('GeoRasterLayer is not on map!');
+                    }
+                }, 500);
+                
+                // Wait a bit for the layer to render, then fit bounds
+                setTimeout(() => {
+                    // Fit map to bounds (Leaflet expects [lat, lng] order)
+                    const bounds = [
+                        [georaster.ymin, georaster.xmin],
+                        [georaster.ymax, georaster.xmax]
+                    ];
+                    console.log('Fitting bounds:', bounds);
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error creating GeoRasterLayer:', error);
+                showError('Error displaying DEM: ' + error.message);
+                return;
+            }
+            
+            // Add click handler for elevation query
+            map.on('click', function(e) {
+                if (currentGeoraster) {
+                    const lat = e.latlng.lat;
+                    const lng = e.latlng.lng;
+                    
+                    // Check if click is within bounds
+                    if (lng >= currentGeoraster.xmin && lng <= currentGeoraster.xmax &&
+                        lat >= currentGeoraster.ymin && lat <= currentGeoraster.ymax) {
+                        
+                        // Get value at location (georaster-layer-for-leaflet handles the conversion)
+                        if (typeof geoblaze !== 'undefined' && geoblaze.identify) {
+                            const values = geoblaze.identify(currentGeoraster, [lng, lat]);
+                            
+                            if (values && values[0] !== null && values[0] !== undefined) {
+                                L.popup()
+                                    .setLatLng(e.latlng)
+                                    .setContent(`
+                                        <strong>Élévation</strong><br>
+                                        Coordonnées: ${lat.toFixed(6)}, ${lng.toFixed(6)}<br>
+                                        Altitude: <strong>${values[0].toFixed(2)} m</strong>
+                                    `)
+                                    .openOn(map);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update statistics display
+        function updateStats(georaster) {
+            const statsDiv = document.getElementById('stats');
+            const statsContent = document.getElementById('stats-content');
+            
+            const min = georaster.mins[0];
+            const max = georaster.maxs[0];
+            const mean = georaster.ranges[0] ? (min + max) / 2 : 0;
+            
+            statsContent.innerHTML = `
+                <div class="stats-item">
+                    <span class="stats-label">Dimensions:</span>
+                    <span class="stats-value">${georaster.width} × ${georaster.height} px</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Élévation min:</span>
+                    <span class="stats-value">${min.toFixed(2)} m</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Élévation max:</span>
+                    <span class="stats-value">${max.toFixed(2)} m</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Étendue:</span>
+                    <span class="stats-value">${(max - min).toFixed(2)} m</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">Bandes:</span>
+                    <span class="stats-value">${georaster.numberOfRasters}</span>
+                </div>
+            `;
+            
+            statsDiv.style.display = 'block';
+        }
+        
+        // Change color scale
+        document.getElementById('colorscale').addEventListener('change', function() {
+            if (currentGeoraster) {
+                currentColorScale = this.value;
+                displayGeoRaster(currentGeoraster);
+                updateLegend(currentGeoraster.mins[0], currentGeoraster.maxs[0], currentColorScale);
+            }
+        });
+        
+        // Show error message
+        function showError(message) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'error';
+            messageDiv.textContent = message;
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'success';
+            messageDiv.textContent = message;
+        }
+        
+        // Initialize on page load
+        initMap();
+        
+        // Load geoblaze for spatial analysis
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/geoblaze@2.8.0/dist/geoblaze.min.js';
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
