@@ -14,6 +14,7 @@ geos = { version = "10.0", features = ["geo"] }
 geotiff = "0.1"
 proj = "0.28"
 gdal = { version = "0.15", features = ["bindgen"] }
+rstar = "0.12"
 
 # Data processing
 polars = { version = "0.51", features = ["lazy", "temporal", "strings"] }
@@ -37,6 +38,9 @@ encoding_rs = "0.8"
 urlencoding = "2.1"
 zip = "0.6"
 tempfile = "3.8"
+
+# LiDAR processing
+las = { version = "0.9", features = ["laz-parallel"] }
 
 [[bin]]
 name = "rsmdu"

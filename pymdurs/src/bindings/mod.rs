@@ -8,6 +8,7 @@ pub mod dem;
 pub mod geo_core;
 pub mod iris;
 pub mod lcz;
+pub mod lidar;
 
 // Re-export all bindings for convenience
 pub use bounding_box::PyBoundingBox;
@@ -17,3 +18,4 @@ pub use dem::PyDem;
 pub use geo_core::PyGeoCore;
 pub use iris::PyIris;
 pub use lcz::PyLcz;
+pub use lidar::PyLidar;

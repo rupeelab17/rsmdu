@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 mod bindings;
 
-use bindings::{PyBoundingBox, PyBuilding, PyCadastre, PyDem, PyGeoCore, PyIris, PyLcz};
+use bindings::{PyBoundingBox, PyBuilding, PyCadastre, PyDem, PyGeoCore, PyIris, PyLcz, PyLidar};
 
 /// Python bindings for pymdurs
 /// Rust transpilation of pymdu (Python Urban Data Model)
@@ -16,12 +16,14 @@ fn pymdurs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     geometric.add_class::<PyCadastre>()?;
     geometric.add_class::<PyIris>()?;
     geometric.add_class::<PyLcz>()?;
+    geometric.add_class::<PyLidar>()?;
     // Add aliases for Pythonic API (Building instead of PyBuilding)
     geometric.setattr("Building", geometric.getattr("PyBuilding")?)?;
     geometric.setattr("Dem", geometric.getattr("PyDem")?)?;
     geometric.setattr("Cadastre", geometric.getattr("PyCadastre")?)?;
     geometric.setattr("Iris", geometric.getattr("PyIris")?)?;
     geometric.setattr("Lcz", geometric.getattr("PyLcz")?)?;
+    geometric.setattr("Lidar", geometric.getattr("PyLidar")?)?;
     m.add_submodule(&geometric)?;
 
     m.add_class::<PyBoundingBox>()?;
