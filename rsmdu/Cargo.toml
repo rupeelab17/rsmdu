@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [features]
-default = []
+default = ["proj"]
 wasm = []
 
 [dependencies]

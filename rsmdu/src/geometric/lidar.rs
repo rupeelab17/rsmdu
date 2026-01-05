@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use proj::Proj;
 
 use crate::geo_core::{BoundingBox, GeoCore};
 
@@ -86,7 +87,7 @@ impl Lidar {
 
         // Transform bbox from EPSG:4326 to EPSG:2154
         // Python: transformer = Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True)
-        let transformer = proj::Proj::new_known_crs("EPSG:4326", "EPSG:2154", None)
+        let transformer = Proj::new_known_crs("EPSG:4326", "EPSG:2154", None)
             .context("Failed to create coordinate transformer")?;
 
         let (min_x, min_y) = transformer
