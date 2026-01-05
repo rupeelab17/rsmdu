@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
 use proj::Proj;
+use std::path::{Path, PathBuf};
 
 use crate::geo_core::{BoundingBox, GeoCore};
 
@@ -130,12 +130,15 @@ impl Lidar {
         // Extract URLs from features
         // Python: list_path_laz = [feature["properties"]["url"] for feature in response["features"]]
         let mut list_path_laz = Vec::new();
-        if let Some(features) = json.get("features").and_then(|f| f.as_array()) {
+        if let Some(features) = json
+            .get("features")
+            .and_then(|f: &serde_json::Value| f.as_array())
+        {
             for feature in features {
                 if let Some(url) = feature
                     .get("properties")
-                    .and_then(|p| p.get("url"))
-                    .and_then(|u| u.as_str())
+                    .and_then(|p: &serde_json::Value| p.get("url"))
+                    .and_then(|u: &serde_json::Value| u.as_str())
                 {
                     list_path_laz.push(url.to_string());
                 }
@@ -167,8 +170,8 @@ impl Lidar {
 
             // Download the file with retry logic
             let mut retries = 3;
-            let bytes = loop {
-                let response = match client.get(url).send() {
+            let bytes: Vec<u8> = loop {
+                let response: reqwest::blocking::Response = match client.get(url).send() {
                     Ok(r) => r,
                     Err(e) => {
                         retries -= 1;
@@ -198,7 +201,7 @@ impl Lidar {
 
                 // Try to read bytes with better error handling
                 match response.bytes() {
-                    Ok(b) => break b,
+                    Ok(b) => break b.to_vec(),
                     Err(e) => {
                         retries -= 1;
                         if retries > 0 {
@@ -448,8 +451,8 @@ impl Lidar {
             let mut dataset = driver
                 .create_with_band_type::<f64, _>(
                     output_path,
-                    rasters.width as isize,
-                    rasters.height as isize,
+                    rasters.width,
+                    rasters.height,
                     3, // 3 bands: DSM, DTM, CHM
                 )
                 .context("Failed to create GeoTIFF dataset")?;
@@ -483,13 +486,9 @@ impl Lidar {
                     }
                 }
 
-                let buffer = Buffer::new((rasters.width as usize, rasters.height as usize), data);
-                band.write(
-                    (0, 0),
-                    (rasters.width as usize, rasters.height as usize),
-                    &buffer,
-                )
-                .context("Failed to write DSM band")?;
+                let mut buffer = Buffer::new((rasters.width, rasters.height), data);
+                band.write((0, 0), (rasters.width, rasters.height), &mut buffer)
+                    .context("Failed to write DSM band")?;
                 band.set_no_data_value(Some(f64::NAN))
                     .context("Failed to set no data value for DSM")?;
             }
@@ -509,13 +508,9 @@ impl Lidar {
                     }
                 }
 
-                let buffer = Buffer::new((rasters.width as usize, rasters.height as usize), data);
-                band.write(
-                    (0, 0),
-                    (rasters.width as usize, rasters.height as usize),
-                    &buffer,
-                )
-                .context("Failed to write DTM band")?;
+                let mut buffer = Buffer::new((rasters.width, rasters.height), data);
+                band.write((0, 0), (rasters.width, rasters.height), &mut buffer)
+                    .context("Failed to write DTM band")?;
                 band.set_no_data_value(Some(f64::NAN))
                     .context("Failed to set no data value for DTM")?;
             }
@@ -531,13 +526,9 @@ impl Lidar {
                     }
                 }
 
-                let buffer = Buffer::new((rasters.width as usize, rasters.height as usize), data);
-                band.write(
-                    (0, 0),
-                    (rasters.width as usize, rasters.height as usize),
-                    &buffer,
-                )
-                .context("Failed to write CHM band")?;
+                let mut buffer = Buffer::new((rasters.width, rasters.height), data);
+                band.write((0, 0), (rasters.width, rasters.height), &mut buffer)
+                    .context("Failed to write CHM band")?;
                 band.set_no_data_value(Some(0.0))
                     .context("Failed to set no data value for CHM")?;
             }

@@ -121,6 +121,46 @@ python examples/lcz_from_url.py
 
 **Note**: L'implémentation complète de LCZ nécessite la lecture de shapefiles depuis des URLs zip et des opérations d'overlay spatial, qui sont en cours de développement.
 
+### 7. `umep_workflow.py`
+
+Exemple complet montrant comment combiner `pymdurs` et `umepr` pour un workflow d'analyse urbaine complet avec UMEP (Urban Multi-scale Environmental Predictor).
+
+**Exécution:**
+
+```bash
+cd py-pymdurs
+python examples/umep_workflow.py
+```
+
+**Ce que fait cet exemple:**
+
+- Collecte des données urbaines avec pymdurs (DEM, bâtiments, végétation)
+- Crée un DSM (Digital Surface Model) à partir du DEM et des bâtiments
+- Crée un CDSM (Canopy Digital Surface Model) à partir de la végétation
+- Calcule le Sky View Factor (SVF) en utilisant umepr
+- Génère les hauteurs de murs pour SOLWEIG (si umep est disponible)
+
+**Prérequis supplémentaires:**
+
+```bash
+pip install geopandas rasterio pyproj
+pip install "umepr @ git+https://github.com/UMEP-dev/umep-rust.git"
+# Optionnel pour SOLWEIG complet:
+pip install umep
+```
+
+**Note importante - Apple Silicon (ARM64):**
+
+Sur Mac avec processeur Apple Silicon, `umepr` peut nécessiter le target Rust `x86_64-apple-darwin`:
+
+```bash
+rustup target add x86_64-apple-darwin
+```
+
+Si vous rencontrez des erreurs de compilation, installez `umepr` séparément après avoir ajouté le target.
+
+**Inspiré de:** [athens-demo.py](https://github.com/UMEP-dev/umep-rust/blob/main/demos/athens-demo.py)
+
 ## Prérequis
 
 Avant d'exécuter les exemples, assurez-vous d'avoir :

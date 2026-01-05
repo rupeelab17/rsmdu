@@ -7,7 +7,6 @@ Le package a été compilé avec succès en utilisant le target natif ARM64.
 ## Solution appliquée
 
 ```bash
-cd pymdurs
 maturin develop --target aarch64-apple-darwin
 ```
 

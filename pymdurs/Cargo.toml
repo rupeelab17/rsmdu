@@ -1,10 +1,8 @@
 [package]
 name = "pymdurs"
-version.workspace = true
-edition.workspace = true
+version = "0.1.0"
+edition = "2021"
 description = "Python bindings for rsmdu - Rust transpilation of pymdu"
-license.workspace = true
-authors.workspace = true
 
 [lib]
 name = "pymdurs"
@@ -19,6 +17,7 @@ rsmdu = { path = "../rsmdu" }
 
 # GeoJSON for bindings
 geojson = "0.24"
+gdal = "0.19.0"
 
 # Note: Polars DataFrame conversion will be handled via Python polars package
 # We don't need polars with python feature here

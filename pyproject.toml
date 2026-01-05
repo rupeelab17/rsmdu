@@ -7,7 +7,7 @@ name = "pymdurs"
 version = "0.1.0"
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Python bindings"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
 authors = [
     { name = "Boris Brangeon", email = "boris.boris@plateforme-tipee.com" }
@@ -23,12 +23,18 @@ classifiers = [
 
 dependencies = [
     "pandas>=2.0.0",
-    "numpy<2.0.0",  # Pin NumPy <2.0 for compatibility with numexpr and other dependencies
+    "numpy>=2.0.2"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+]
+umep = [
+    "umepr @ git+https://github.com/UMEP-dev/umep-rust.git",
+    # Note: umepr may require x86_64-apple-darwin target on Apple Silicon
+    # Install with: rustup target add x86_64-apple-darwin
+    # Or install umepr separately: pip install umepr @ git+https://github.com/UMEP-dev/umep-rust.git
 ]
 
 [tool.pytest.ini_options]
@@ -36,15 +42,25 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+console_output_style = "count"
+log_cli = true
+log_cli_level = "INFO"
+addopts = "-s"
 
 [tool.maturin]
+manifest-path = "pymdurs/Cargo.toml"
 features = []
 module-name = "pymdurs"
-# Package Python files alongside the compiled extension
-# The pymdurs/__init__.py will be included automatically
-# Use native target instead of forcing x86_64
-# This will use the default Rust target (aarch64-apple-darwin on Apple Silicon)
-# Optionnel : spécifier le target
-# target = "aarch64-apple-darwin"  # Pour ARM64
-# target = "x86_64-apple-darwin"   # Pour x86_64
+python-source = "pymdurs"
 
+
+[tool.setuptools]
+packages = ["pymdurs"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"

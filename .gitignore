@@ -1,5 +1,7 @@
 # Rust
 /target/
+target/
+**/target/
 **/*.rs.bk
 *.pdb
 
@@ -120,7 +122,7 @@ lcov.info
 *.backup
 *~
 
-pymdurs/examples/output/
-pymdurs/examples/temp/
-pymdurs/examples/output/
-pymdurs/examples/temp/
+examples/output/
+examples/temp/
+examples/output/
+examples/temp/

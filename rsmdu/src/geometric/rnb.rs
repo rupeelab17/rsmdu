@@ -181,21 +181,24 @@ impl Rnb {
             // Python: if len(item["addresses"]) > 0:
             if let Some(address) = building.addresses.first() {
                 if let Some(ref street_number) = address.street_number {
+                    let street_number_str: String = street_number.clone();
                     properties.insert(
                         "street_number".to_string(),
-                        serde_json::Value::String(street_number.clone()),
+                        serde_json::Value::String(street_number_str),
                     );
                 }
                 if let Some(ref city_name) = address.city_name {
+                    let city_name_str: String = city_name.clone();
                     properties.insert(
                         "city_name".to_string(),
-                        serde_json::Value::String(city_name.clone()),
+                        serde_json::Value::String(city_name_str),
                     );
                 }
                 if let Some(ref city_zipcode) = address.city_zipcode {
+                    let city_zipcode_str: String = city_zipcode.clone();
                     properties.insert(
                         "city_zipcode".to_string(),
-                        serde_json::Value::String(city_zipcode.clone()),
+                        serde_json::Value::String(city_zipcode_str),
                     );
                 }
             }
@@ -204,9 +207,10 @@ impl Rnb {
             // Python: created_at = item["ext_ids"][0]["created_at"]
             if let Some(ext_id) = building.ext_ids.first() {
                 if let Some(ref created_at) = ext_id.created_at {
+                    let created_at_str: String = created_at.clone();
                     properties.insert(
                         "created_at".to_string(),
-                        serde_json::Value::String(created_at.clone()),
+                        serde_json::Value::String(created_at_str),
                     );
                 }
             }

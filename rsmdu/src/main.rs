@@ -2,7 +2,6 @@
 
 fn main() {
     println!("rsmdu - Rust transpilation of pymdu");
-    
+
     // Example usage will be added as we implement the modules
 }
-

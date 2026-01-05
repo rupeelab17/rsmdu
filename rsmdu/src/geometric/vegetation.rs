@@ -30,6 +30,7 @@ pub struct Vegetation {
     /// Minimum area filter (Python: min_area)
     min_area: f64,
     /// Write file flag (Python: write_file)
+    #[allow(dead_code)]
     write_file: bool,
     /// Path to temporary IRC image
     img_tiff_path: PathBuf,
@@ -204,8 +205,8 @@ impl Vegetation {
         // Python: ndvi = (bandNIR.astype(float) - bandRed.astype(float)) / (bandNIR.astype(float) + bandRed.astype(float))
         let mut ndvi_data = Vec::with_capacity(width * height);
         for i in 0..(width * height) {
-            let nir = nir_buffer.data[i];
-            let red = red_buffer.data[i];
+            let nir = nir_buffer.data()[i];
+            let red = red_buffer.data()[i];
             let ndvi = if (nir + red) != 0.0 {
                 (nir - red) / (nir + red)
             } else {
@@ -245,8 +246,8 @@ impl Vegetation {
         let mut output_dataset = driver
             .create_with_band_type::<f64, _>(
                 &self.ndvi_tif_path,
-                width as isize,
-                height as isize,
+                width,
+                height,
                 1, // Single band for NDVI
             )
             .context("Failed to create NDVI GeoTIFF dataset")?;
@@ -269,8 +270,8 @@ impl Vegetation {
             .rasterband(1)
             .context("Failed to get output band")?;
 
-        let buffer = Buffer::new((width, height), ndvi_data.to_vec());
-        band.write((0, 0), (width, height), &buffer)
+        let mut buffer = Buffer::new((width, height), ndvi_data.to_vec());
+        band.write((0, 0), (width, height), &mut buffer)
             .context("Failed to write NDVI band")?;
         band.set_no_data_value(Some(-999.0))
             .context("Failed to set no data value")?;
@@ -501,7 +502,6 @@ impl Vegetation {
             "Vegetation saved to: {:?} (as GeoJSON - GeoJSON export temporarily disabled)",
             output_file
         );
-
 
         Ok(())
     }

@@ -1,14 +1,13 @@
 [package]
 name = "rsmdu"
-version.workspace = true
-edition.workspace = true
+version = "0.1.0"
+edition = "2021" 
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Core library"
-license.workspace = true
-authors.workspace = true
 
 [features]
-default = ["proj"]
+default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml"]
 wasm = []
+umep = []
 
 [dependencies]
 # GeoRust ecosystem
@@ -17,7 +16,7 @@ geojson = "0.24"
 geos = { version = "10.0", features = ["geo"], optional = true }
 geotiff = { version = "0.1", optional = true }
 proj = { version = "0.28", optional = true }
-gdal = { version = "0.15", features = ["bindgen"], optional = true }
+gdal = { version = "0.19", features = ["bindgen"], optional = true }
 rstar = "0.12"
 
 # Data processing
@@ -45,6 +44,10 @@ tempfile = { version = "3.8", optional = true }
 
 # LiDAR processing
 las = { version = "0.9", features = ["laz-parallel"], optional = true }
+
+# UMEP integration (optional - only when umep feature is enabled)
+# Note: umep_rust may not be available as a crate, comment out if not needed
+# umep_rust = { version = "0.1", optional = true }
 
 [[bin]]
 name = "rsmdu"

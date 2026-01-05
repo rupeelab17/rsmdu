@@ -144,7 +144,7 @@ impl IgnCollect {
         let encoding =
             encoding_rs::Encoding::for_label(b"ISO-8859-1").unwrap_or(encoding_rs::WINDOWS_1252);
         let (decoded, _, _) = encoding.decode(&buffer);
-        let decoded_str = decoded.as_ref();
+        let decoded_str: &str = decoded.as_ref();
 
         let mut rdr = ReaderBuilder::new()
             .delimiter(b';')
@@ -156,7 +156,7 @@ impl IgnCollect {
         let _headers = rdr.headers()?;
 
         for result in rdr.records() {
-            let record = result.context("Failed to read CSV record")?;
+            let record: csv::StringRecord = result.context("Failed to read CSV record")?;
 
             if record.len() < 7 {
                 continue; // Skip incomplete rows

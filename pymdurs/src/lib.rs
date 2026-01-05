@@ -13,35 +13,51 @@ use bindings::{
 #[pymodule]
 fn pymdurs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register submodules
-    let geometric = PyModule::new(m.py(), "geometric")?;
-    geometric.add_class::<PyBuilding>()?;
-    geometric.add_class::<PyDem>()?;
-    geometric.add_class::<PyCadastre>()?;
-    geometric.add_class::<PyIris>()?;
-    geometric.add_class::<PyLcz>()?;
-    geometric.add_class::<PyLidar>()?;
-    geometric.add_class::<PyRoad>()?;
-    geometric.add_class::<PyRnb>()?;
-    geometric.add_class::<PyVegetation>()?;
-    geometric.add_class::<PyWater>()?;
-    // Add aliases for Pythonic API (Building instead of PyBuilding)
-    geometric.setattr("Building", geometric.getattr("PyBuilding")?)?;
-    geometric.setattr("Dem", geometric.getattr("PyDem")?)?;
-    geometric.setattr("Cadastre", geometric.getattr("PyCadastre")?)?;
-    geometric.setattr("Iris", geometric.getattr("PyIris")?)?;
-    geometric.setattr("Lcz", geometric.getattr("PyLcz")?)?;
-    geometric.setattr("Lidar", geometric.getattr("PyLidar")?)?;
-    geometric.setattr("Road", geometric.getattr("PyRoad")?)?;
-    geometric.setattr("Rnb", geometric.getattr("PyRnb")?)?;
-    geometric.setattr("Vegetation", geometric.getattr("PyVegetation")?)?;
-    geometric.setattr("Water", geometric.getattr("PyWater")?)?;
-    m.add_submodule(&geometric)?;
+    register_geometric_module(m)?;
 
+    // Register core classes
     m.add_class::<PyBoundingBox>()?;
     m.add_class::<PyGeoCore>()?;
     // Add aliases for Pythonic API
     m.setattr("BoundingBox", m.getattr("PyBoundingBox")?)?;
     m.setattr("GeoCore", m.getattr("PyGeoCore")?)?;
 
+    m.add(
+        "__doc__",
+        "Python bindings for pymdurs - Rust transpilation of pymdu (Python Urban Data Model)",
+    )?;
+
+    Ok(())
+}
+
+fn register_geometric_module(py_module: &Bound<'_, PyModule>) -> PyResult<()> {
+    let submodule = PyModule::new(py_module.py(), "geometric")?;
+    submodule.add("__doc__", "Geometric data processing classes.")?;
+
+    // Register all geometric classes
+    submodule.add_class::<PyBuilding>()?;
+    submodule.add_class::<PyDem>()?;
+    submodule.add_class::<PyCadastre>()?;
+    submodule.add_class::<PyIris>()?;
+    submodule.add_class::<PyLcz>()?;
+    submodule.add_class::<PyLidar>()?;
+    submodule.add_class::<PyRoad>()?;
+    submodule.add_class::<PyRnb>()?;
+    submodule.add_class::<PyVegetation>()?;
+    submodule.add_class::<PyWater>()?;
+
+    // Add aliases for Pythonic API (Building instead of PyBuilding)
+    submodule.setattr("Building", submodule.getattr("PyBuilding")?)?;
+    submodule.setattr("Dem", submodule.getattr("PyDem")?)?;
+    submodule.setattr("Cadastre", submodule.getattr("PyCadastre")?)?;
+    submodule.setattr("Iris", submodule.getattr("PyIris")?)?;
+    submodule.setattr("Lcz", submodule.getattr("PyLcz")?)?;
+    submodule.setattr("Lidar", submodule.getattr("PyLidar")?)?;
+    submodule.setattr("Road", submodule.getattr("PyRoad")?)?;
+    submodule.setattr("Rnb", submodule.getattr("PyRnb")?)?;
+    submodule.setattr("Vegetation", submodule.getattr("PyVegetation")?)?;
+    submodule.setattr("Water", submodule.getattr("PyWater")?)?;
+
+    py_module.add_submodule(&submodule)?;
     Ok(())
 }

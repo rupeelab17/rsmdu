@@ -693,7 +693,8 @@ impl BuildingCollection {
     /// Convert building collection to Polars DataFrame
     /// Similar to to_gdf() in Python version
     /// Returns a standard Polars DataFrame (not GeoDataFrame)
-    pub fn to_polars_df(&self) -> Result<DataFrame> {
+    #[cfg(not(feature = "wasm"))]
+    pub fn to_polars_df(&self) -> Result<polars::prelude::DataFrame> {
         let mut height_vec: Vec<Option<f64>> = Vec::new();
         let mut area_vec: Vec<f64> = Vec::new();
         let mut centroid_x_vec: Vec<f64> = Vec::new();
@@ -730,7 +731,8 @@ impl BuildingCollection {
     /// Compatible with polars-st (https://github.com/Oreilles/polars-st)
     /// Returns a DataFrame with a "geometry" column containing EWKB bytes with SRID
     /// polars-st stores geometries as EWKB in Binary columns
-    pub fn to_gdf(&self) -> Result<DataFrame> {
+    #[cfg(not(feature = "wasm"))]
+    pub fn to_gdf(&self) -> Result<polars::prelude::DataFrame> {
         use std::io::{Cursor, Read, Write};
 
         let mut height_vec: Vec<Option<f64>> = Vec::new();

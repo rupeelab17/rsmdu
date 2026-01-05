@@ -147,3 +147,22 @@ lcz.to_geojson(name="lcz")
 ```bash
 pip install 'numpy<2.0.0'
 ```
+
+## Optional: UMEP Integration
+
+To use `pymdurs` with `umepr` for UMEP (Urban Multi-scale Environmental Predictor) workflows, install the optional dependencies:
+
+```bash
+# On Apple Silicon (ARM64), first add the x86_64 Rust target:
+rustup target add x86_64-apple-darwin
+
+# Then install umepr:
+pip install "umepr @ git+https://github.com/UMEP-dev/umep-rust.git"
+
+# Or use the installation script:
+./install_umepr.sh
+```
+
+**Note**: `umepr` currently requires the `x86_64-apple-darwin` Rust target even on Apple Silicon Macs. This is a limitation of the `umepr` package itself.
+
+See `examples/umep_workflow.py` for a complete example combining `pymdurs` and `umepr`.
