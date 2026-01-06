@@ -16,6 +16,8 @@ pub struct Lidar {
     classification: Option<u8>,
     /// List of LAZ file URLs (populated by get_lidar_points)
     list_path_laz: Option<Vec<String>>,
+    /// Loaded LiDAR points (populated by load_lidar_points)
+    loaded_points: Option<Vec<LidarPoint>>,
 }
 
 /// Point structure for LiDAR data
@@ -40,7 +42,12 @@ struct ProcessedRasters {
 impl Lidar {
     /// Create a new Lidar instance
     /// Following Python: def __init__(self, output_path=None, classification=None)
-    pub fn new(output_path: Option<String>, classification: Option<u8>) -> Result<Self> {
+    /// If bbox is provided, get_lidar_points() is called immediately
+    pub fn new(
+        output_path: Option<String>,
+        classification: Option<u8>,
+        bbox: Option<(f64, f64, f64, f64)>,
+    ) -> Result<Self> {
         use crate::collect::global_variables::TEMP_PATH;
 
         let output_path_buf = PathBuf::from(
@@ -50,19 +57,41 @@ impl Lidar {
                 .unwrap_or(TEMP_PATH),
         );
 
-        Ok(Lidar {
+        let mut lidar = Lidar {
             geo_core: GeoCore::default(), // Default to EPSG:2154 (Lambert-93)
             output_path: output_path_buf,
             classification,
             list_path_laz: None,
-        })
+            loaded_points: None,
+        };
+
+        // If bbox is provided, set it and get LiDAR points immediately
+        if let Some((min_x, min_y, max_x, max_y)) = bbox {
+            lidar.set_bbox(min_x, min_y, max_x, max_y)?;
+        }
+
+        Ok(lidar)
     }
 
-    /// Set bounding box
+    /// Set bounding box and get LiDAR points URLs, then load the points
     /// Following Python: lidar.bbox = [min_x, min_y, max_x, max_y]
-    pub fn set_bbox(&mut self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) {
+    /// This also calls get_lidar_points() and load_lidar_points() to fetch and load LAZ files
+    pub fn set_bbox(&mut self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> Result<()> {
         self.geo_core
             .set_bbox(Some(BoundingBox::new(min_x, min_y, max_x, max_y)));
+
+        // Get LiDAR points URLs immediately when bbox is set
+        self.get_lidar_points()?;
+
+        // Load LiDAR points from URLs
+        if let Some(ref laz_urls) = self.list_path_laz {
+            if !laz_urls.is_empty() {
+                let points = self.load_lidar_points_internal(laz_urls)?;
+                self.loaded_points = Some(points);
+            }
+        }
+
+        Ok(())
     }
 
     /// Set classification filter
@@ -153,10 +182,10 @@ impl Lidar {
         Ok((min_x, min_y, max_x, max_y, list_path_laz))
     }
 
-    /// Download and load LiDAR points from LAZ URLs
+    /// Download and load LiDAR points from LAZ URLs (internal method)
     /// Following Python: def load_lidar_points(self, laz_urls)
     /// Returns vector of LidarPoint with (x, y, z, classification)
-    fn load_lidar_points(&self, laz_urls: &[String]) -> Result<Vec<LidarPoint>> {
+    fn load_lidar_points_internal(&self, laz_urls: &[String]) -> Result<Vec<LidarPoint>> {
         let mut all_points = Vec::new();
 
         // Create HTTP client with longer timeout for large files
@@ -540,27 +569,53 @@ impl Lidar {
     }
 
     /// Run the complete LiDAR processing workflow
-    /// Following Python workflow: get URLs → load points → process → create GeoTIFF
+    /// Following Python workflow: load points → process → create GeoTIFF
+    /// Note: get_lidar_points() is now called in set_bbox(), so URLs are already available
     /// Returns path to the created GeoTIFF file
     pub fn run(
         &mut self,
+        file_name: Option<String>,
         classification_list: Option<Vec<u8>>,
         resolution: Option<f64>,
         write_out_file: bool,
     ) -> Result<PathBuf> {
         let resolution = resolution.unwrap_or(1.0);
 
-        // Step 1: Get LAZ file URLs from WFS
-        let (min_x, min_y, max_x, max_y, laz_urls) = self.get_lidar_points()?;
+        // Get LAZ file URLs (already fetched in set_bbox)
+        let laz_urls = self
+            .list_path_laz
+            .as_ref()
+            .context("No LAZ URLs available. Call set_bbox() first.")?;
 
         if laz_urls.is_empty() {
             anyhow::bail!("No LAZ files found for the specified bounding box");
         }
 
-        // Step 2: Download and load LiDAR points
-        let points = self.load_lidar_points(&laz_urls)?;
+        // Get bbox for processing (already transformed in get_lidar_points)
+        let bbox = self
+            .geo_core
+            .get_bbox()
+            .context("Bounding box must be set")?;
 
-        // Step 3: Process points to create rasters
+        // Transform bbox from EPSG:4326 to EPSG:2154 (same as in get_lidar_points)
+        let transformer = Proj::new_known_crs("EPSG:4326", "EPSG:2154", None)
+            .context("Failed to create coordinate transformer")?;
+
+        let (min_x, min_y) = transformer
+            .convert((bbox.min_x, bbox.min_y))
+            .context("Failed to transform min coordinates")?;
+        let (max_x, max_y) = transformer
+            .convert((bbox.max_x, bbox.max_y))
+            .context("Failed to transform max coordinates")?;
+
+        // Use already loaded points (loaded in set_bbox)
+        let points = self
+            .loaded_points
+            .as_ref()
+            .context("No LiDAR points loaded. Call set_bbox() first.")?
+            .clone();
+
+        // Process points to create rasters
         let rasters = self.process_lidar_points(
             points,
             (min_x, min_y, max_x, max_y),
@@ -568,8 +623,10 @@ impl Lidar {
             resolution,
         )?;
 
-        // Step 4: Create GeoTIFF
-        let output_file = self.output_path.join("lidar_cdsm.tif");
+        // Create GeoTIFF
+        let output_file = self
+            .output_path
+            .join(file_name.unwrap_or("lidar_cdsm.tif".to_string()));
         let output_path = self.to_tif(&rasters, &output_file, write_out_file)?;
 
         Ok(output_path)

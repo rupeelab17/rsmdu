@@ -31,7 +31,8 @@ fn pymdurs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_geometric_module(py_module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let submodule = PyModule::new(py_module.py(), "geometric")?;
+    let py = py_module.py();
+    let submodule = PyModule::new(py, "geometric")?;
     submodule.add("__doc__", "Geometric data processing classes.")?;
 
     // Register all geometric classes
@@ -58,6 +59,14 @@ fn register_geometric_module(py_module: &Bound<'_, PyModule>) -> PyResult<()> {
     submodule.setattr("Vegetation", submodule.getattr("PyVegetation")?)?;
     submodule.setattr("Water", submodule.getattr("PyWater")?)?;
 
+    // CRITICAL: Register in sys.modules with full name FIRST
+    /*let sys = py.import("sys")?;
+    let modules_attr = sys.getattr("modules")?;
+    let modules = modules_attr.cast::<PyDict>()?;
+    modules.set_item("pymdurs.geometric", &submodule)?;*/
+
+    // Then add to parent module - this makes it accessible as pymdurs.geometric
     py_module.add_submodule(&submodule)?;
+
     Ok(())
 }
