@@ -100,6 +100,15 @@ pymdurs/
 - **Water bodies**: Download water body data from IGN API
 - **Vegetation zones**: Download vegetation data from IGN API
 
+### 🛰️ LiDAR Processing
+
+- **LiDAR data collection**: Download LAZ files from IGN WFS service
+- **Point cloud processing**: Load and process LiDAR point clouds
+- **Raster generation**: Create DSM (Digital Surface Model), DTM (Digital Terrain Model), and CHM (Canopy Height Model)
+- **Classification filtering**: Filter points by classification (ground, vegetation, buildings, water, etc.)
+- **Multi-band GeoTIFF export**: Export processed rasters as multi-band GeoTIFF files
+- **Automatic workflow**: Points are automatically fetched and loaded when bounding box is set
+
 ### 🌐 IGN API Integration
 
 - **WFS (Web Feature Service)**: Vector data retrieval (buildings, roads, water, etc.)
@@ -121,7 +130,7 @@ pymdurs/
 ### Rust Library
 
 ```bash
-git clone https://github.com/rupeelab17/rsmdu.git
+git clone https://github.com/rupeelab17/pymdurs.git
 cd pymdurs
 cargo build --release
 ```
@@ -149,23 +158,22 @@ maturin develop
 
 **Note**: On Apple Silicon, if you get an error about missing `x86_64-apple-darwin` target, use `--target aarch64-apple-darwin` explicitly.
 
+**Important**: Maturin requires an active Python environment:
+- **Conda**: Activate your conda environment first (`conda activate base` or your environment)
+- **venv**: Create and activate a virtual environment (`python3 -m venv .venv && source .venv/bin/activate`)
+- Maturin will detect the environment via `CONDA_PREFIX` or `VIRTUAL_ENV` environment variables
+
 Or install directly (once published):
 
 ```bash
-pip install rsmdu
+pip install pymdurs
 ```
 
 **Requirements:**
 
-- Python >= 3.8
+- Python >= 3.9
 - pandas >= 2.0.0
-- numpy < 2.0.0 (for compatibility with numexpr and other dependencies)
-
-**Note**: If you encounter NumPy 2.x compatibility issues, install NumPy 1.x:
-
-```bash
-pip install 'numpy<2.0.0'
-```
+- numpy >= 2.0.2
 
 ### WebAssembly
 
@@ -237,10 +245,10 @@ println!("Mask: {:?}", dem_result.get_path_save_mask());
 ### Python Bindings
 
 ```python
-import rsmdu
+import pymdurs
 
 # Create BuildingCollection
-buildings = rsmdu.geometric.Building(
+buildings = pymdurs.geometric.Building(
     output_path="./output",
     defaultStoreyHeight=3.0
 )
@@ -253,6 +261,30 @@ buildings = buildings.run()
 
 # Convert to pandas DataFrame
 df = buildings.to_pandas()
+```
+
+#### LiDAR Processing
+
+```python
+import pymdurs
+
+# Create Lidar instance
+lidar = pymdurs.geometric.Lidar(output_path="./output")
+
+# Set bounding box (automatically fetches LAZ file URLs and loads points)
+# Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
+lidar.set_bbox(-1.154894, 46.182639, -1.148361, 46.186820)
+
+# Set CRS (optional, defaults to EPSG:2154)
+lidar.set_crs(2154)
+
+# Process points to create rasters (DSM, DTM, CHM)
+# Classification filter: 2=Ground, 3=Low Vegetation, 4=Medium, 5=High, 6=Building, 9=Water
+classification_list = [3, 4, 5, 9]  # Vegetation and water
+output_path = lidar.run(file_name="CDSM.tif", classification_list=classification_list)
+
+print(f"GeoTIFF saved to: {output_path}")
+# File contains 3 bands: DSM, DTM, CHM
 ```
 
 ### WebAssembly (Browser)
@@ -268,7 +300,9 @@ await init("./pkg/rsmdu_wasm_bg.wasm");
 // Load buildings from GeoJSON
 const geojson = {
   type: "FeatureCollection",
-  features: [/* ... */]
+  features: [
+    /* ... */
+  ],
 };
 
 const collection = WasmBuildingCollection.from_geojson(
@@ -299,10 +333,10 @@ await init("./pkg/rsmdu_wasm_bg.wasm");
 
 // Load DEM from IGN API
 const dem = await WasmDem.from_ign_api(
-  -1.152704,  // min_x
-  46.181627,  // min_y
-  -1.139893,  // max_x
-  46.18699    // max_y
+  -1.152704, // min_x
+  46.181627, // min_y
+  -1.139893, // max_x
+  46.18699 // max_y
 );
 
 // Get DEM dimensions
@@ -325,6 +359,7 @@ Comprehensive examples are available for all three deployment targets:
 Located in `rsmdu/examples/`:
 
 **Building Examples:**
+
 - **`building_manual.rs`**: Minimal example of manually creating buildings
 - **`building_from_geojson.rs`**: Complete example loading from GeoJSON
 - **`building_from_ign.rs`**: Example using `run()` method (Python-style)
@@ -332,6 +367,7 @@ Located in `rsmdu/examples/`:
 - **`building_complete.rs`**: Comprehensive example covering all use cases
 
 **Other Examples:**
+
 - **`dem_from_ign.rs`**: Downloading and processing DEM from IGN API
 - **`cadastre_from_ign.rs`**: Downloading and processing cadastral data from IGN API
 - **`iris_from_ign.rs`**: Downloading and processing IRIS statistical units from IGN API
@@ -363,6 +399,7 @@ Located in `pymdurs/examples/`:
 - **`cadastre_from_ign.py`**: Download cadastral data from IGN API
 - **`iris_from_ign.py`**: Download IRIS statistical units from IGN API
 - **`lcz_from_url.py`**: Load LCZ data from URL
+- **`lidar_from_wfs.py`**: Download and process LiDAR data from IGN WFS service
 - **`road_from_ign.py`**: Download road segments from IGN API
 - **`water_from_ign.py`**: Download water bodies from IGN API
 - **`vegetation_from_ign.py`**: Download vegetation zones from IGN API
@@ -407,15 +444,18 @@ The library integrates with the French IGN (Institut Géographique National) Gé
 ### Available Services
 
 **Vector Data (WFS)**:
+
 - `buildings`: Building footprints (BDTOPO_V3:batiment)
 - `road`: Road segments (BDTOPO_V3:troncon_de_route)
 - `water`: Water bodies (BDTOPO_V3:plan_d_eau)
 - `cadastre`: Cadastral parcels (CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle)
 - `iris`: IRIS statistical units (STATISTICALUNITS.IRIS:contours_iris)
+- `lidar`: LiDAR point cloud data (IGNF_LIDAR-HD_TA:nuage-dalle)
 - `vegetation`: Vegetation zones
 - `hydrographique`: Hydrographic details
 
 **Raster Data (WMS-R)**:
+
 - `dem`: Digital Elevation Model (ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES)
 - `dsm`: Digital Surface Model
 - `irc`: IRC orthoimagery
@@ -437,10 +477,12 @@ The library integrates with the French IGN (Institut Géographique National) Gé
 The project uses a Cargo workspace with three crates:
 
 1. **`rsmdu`**: Core Rust library with all geospatial functionality
+
    - Uses feature flags (`wasm`) to conditionally compile WASM-incompatible dependencies
    - Optional dependencies: `gdal`, `proj`, `geos`, `polars`, `reqwest`, etc.
 
 2. **`pymdurs`**: Python bindings using PyO3
+
    - Depends on `rsmdu` crate
    - Provides Pythonic API with aliases
 
@@ -478,6 +520,7 @@ pub struct BuildingCollection {
 ### ✅ Fully Implemented
 
 **Core Features:**
+
 - ✅ GeoJSON parsing and building collection
 - ✅ IGN API integration (WFS and WMS)
 - ✅ Building height processing with multiple fallback strategies
@@ -492,14 +535,18 @@ pub struct BuildingCollection {
 - ✅ Coordinate Reference System (CRS) transformations using Proj
 
 **Python Bindings (PyO3):**
-- ✅ Complete Python bindings installable via `pip install rsmdu`
-- ✅ All geometric classes available: `Building`, `Dem`, `Cadastre`, `Iris`, `Lcz`, `Road`, `Water`, `Vegetation`
-- ✅ Pythonic API with aliases (e.g., `rsmdu.geometric.Building` instead of `PyBuilding`)
+
+- ✅ Complete Python bindings installable via `pip install pymdurs`
+- ✅ All geometric classes available: `Building`, `Dem`, `Cadastre`, `Iris`, `Lcz`, `Lidar`, `Road`, `Water`, `Vegetation`
+- ✅ Geometric submodule (`pymdurs.geometric`) for organized class access
+- ✅ Pythonic API with aliases (e.g., `pymdurs.geometric.Building` instead of `PyBuilding`)
 - ✅ Pandas DataFrame conversion for Building data
 - ✅ GeoJSON export/import
+- ✅ LiDAR processing with automatic point loading
 - ✅ Comprehensive Python examples and tests
 
 **WebAssembly Bindings:**
+
 - ✅ Building collection processing in browser
 - ✅ DEM loading from IGN API in browser
 - ✅ DEM loading from local TIFF files
@@ -511,6 +558,7 @@ pub struct BuildingCollection {
 - ✅ OSM layer opacity control
 
 **Data Formats:**
+
 - ✅ GeoJSON parsing and generation
 - ✅ GeoTIFF reading and validation
 - ✅ GeoJSON export (simplified, saves as GeoJSON temporarily)
@@ -518,6 +566,7 @@ pub struct BuildingCollection {
 ### 🚧 In Progress / Limitations
 
 **Current Limitations:**
+
 - ⚠️ GDAL Shapefile I/O temporarily disabled (API compatibility issues)
 - ⚠️ Full GeoJSON export not yet implemented (saves as GeoJSON as workaround)
 - ⚠️ LCZ shapefile loading from zip URLs requires full GDAL implementation
@@ -526,6 +575,7 @@ pub struct BuildingCollection {
 - ⚠️ DEM pixel data access in WASM (currently metadata only)
 
 **Workarounds:**
+
 - Use GeoJSON format instead of Shapefiles for input/output
 - GeoJSON export currently saves as GeoJSON (full GeoJSON support planned)
 - LCZ processing structure ready but full shapefile loading pending GDAL fixes
@@ -534,6 +584,7 @@ pub struct BuildingCollection {
 ### 📋 Planned Features
 
 **Short-term:**
+
 - Complete GDAL integration for Shapefile I/O
 - Full GeoJSON export with proper layer management
 - Full raster reprojection with resampling options
@@ -541,6 +592,7 @@ pub struct BuildingCollection {
 - Full DEM pixel data access in WASM
 
 **Long-term:**
+
 - Additional geometric operations
 - More IGN API services
 - Performance optimizations
@@ -572,8 +624,9 @@ Or manually test the Python bindings:
 
 ```bash
 cd pymdurs
-python -c "import rsmdu; print('✅ rsmdu imported successfully')"
-python -c "import rsmdu; print('Available classes:', [x for x in dir(rsmdu.geometric) if not x.startswith('_')])"
+python -c "import pymdurs; print('✅ pymdurs imported successfully')"
+python -c "import pymdurs; print('Available classes:', [x for x in dir(pymdurs.geometric) if not x.startswith('_')])"
+python -c "import pymdurs; lidar = pymdurs.geometric.Lidar(output_path='./test'); print('✅ Lidar class works')"
 ```
 
 ### WebAssembly Tests
@@ -592,7 +645,7 @@ Contributions are welcome! This project follows standard Rust and Python best pr
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/rupeelab17/rsmdu.git
+   git clone https://github.com/rupeelab17/pymdurs.git
    cd pymdurs
    ```
 
@@ -605,11 +658,21 @@ Contributions are welcome! This project follows standard Rust and Python best pr
    ```
 
 3. **Set up Python development:**
+
    ```bash
    cd pymdurs
    pip install maturin
+   
+   # Activate your Python environment (conda, venv, etc.)
+   # For Conda:
+   conda activate base  # or your environment
+   # For venv:
+   # source .venv/bin/activate
+   
    maturin develop --target aarch64-apple-darwin  # or your target
    ```
+   
+   **Note**: Maturin requires either a virtual environment (venv) or Conda environment to be active. Make sure `VIRTUAL_ENV` or `CONDA_PREFIX` is set.
 
 4. **Set up WebAssembly development:**
    ```bash
@@ -662,7 +725,7 @@ This Rust implementation provides significant performance improvements over the 
 
 ## 📝 Version
 
-Current version: **0.1.0** (Alpha)
+Current version: **0.1.1** (Alpha)
 
 This is an early release. The API may change in future versions. See the [Status](#-status) section for implementation details.
 

@@ -23,12 +23,15 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import rasterio
+from rasterio.features import rasterize
+from shapely.geometry import shape
 
 import pymdurs
 
 # Try to import umepr for SVF calculation
 try:
-    from umepr import svf
+    from umepr import solweig_runner_rust, svf
 
     HAS_UMEPR = True
 except ImportError:
@@ -42,14 +45,15 @@ except ImportError:
 # Try to import umep for additional utilities (optional)
 try:
     from umep import wall_heightaspect_algorithm  # noqa: F401
+    from umep.functions.SOLWEIGpython import solweig_runner_core
 
-    # These are used conditionally in the code below
-    # from umep.functions.SOLWEIGpython import solweig_runner_core
-    # from umepr import solweig_runner_rust
     HAS_UMEP = True
 except ImportError:
     HAS_UMEP = False
     print("⚠️  umep package not available. Some features will be disabled.")
+
+print("HAS_UMEPR", HAS_UMEPR)
+print("HAS_UMEP", HAS_UMEP)
 
 
 def main():
@@ -64,7 +68,7 @@ def main():
 
     # Bounding box (La Rochelle area, France)
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
-    bbox_wgs84 = (-1.152704, 46.181627, -1.139893, 46.18699)
+    bbox_wgs84 = (-1.154894, 46.182639, -1.148361, 46.186820)
 
     # Working CRS (Lambert 93 - EPSG:2154)
     working_crs = 2154
@@ -83,7 +87,7 @@ def main():
     dem.set_crs(working_crs)
     dem = dem.run()
 
-    dem_tiff_path = dem.get_path_save_tiff()
+    dem_tiff_path = Path(output_folder_str) / "DEM.tif"
     print(f"✅ DEM saved to: {dem_tiff_path}")
 
     # Step 2: Collect buildings using pymdurs
@@ -101,11 +105,18 @@ def main():
 
     # Convert buildings to GeoDataFrame for processing
     buildings_df = buildings.to_pandas()
-    if not buildings_df.empty and "geometry" in buildings_df.columns:
-        buildings_gdf = gpd.GeoDataFrame(buildings_df, crs=f"EPSG:{working_crs}")
-    else:
-        print("⚠️  No building geometries found, skipping DSM creation")
-        buildings_gdf = None
+    buildings_geojson = buildings.get_geojson()
+
+    features = buildings_geojson["features"]
+
+    # Extract geometries and properties
+    geometries = [shape(f["geometry"]) for f in features]
+    properties = [f["properties"] for f in features]
+
+    # Create GeoDataFrame
+    buildings_gdf = gpd.GeoDataFrame(properties, geometry=geometries, crs="EPSG:4326")
+    print(buildings_df.head())
+    print(buildings_gdf.columns)
 
     # Step 3: Collect vegetation using pymdurs
     print("\n" + "=" * 60)
@@ -123,11 +134,13 @@ def main():
     if vegetation_geojson and "features" in vegetation_geojson:
         num_features = len(vegetation_geojson["features"])
         print(f"✅ Loaded {num_features} vegetation polygons")
-
-        # Convert to GeoDataFrame
-        trees_gdf = gpd.GeoDataFrame.from_features(
-            vegetation_geojson["features"], crs=f"EPSG:{working_crs}"
-        )
+        if num_features > 0:
+            # Convert to GeoDataFrame
+            trees_gdf = gpd.GeoDataFrame.from_features(
+                vegetation_geojson["features"], crs=f"EPSG:{working_crs}"
+            )
+        else:
+            trees_gdf = None
     else:
         print("⚠️  No vegetation data found, skipping CDSM creation")
         trees_gdf = None
@@ -139,17 +152,14 @@ def main():
 
     if buildings_gdf is not None and os.path.exists(dem_tiff_path):
         # Read DEM
-        import rasterio
-        from rasterio.features import rasterize
-
         with rasterio.open(dem_tiff_path) as dem_src:
             dem_data = dem_src.read(1)
             dem_transform = dem_src.transform
             dem_crs = dem_src.crs
 
             # Rasterize buildings with heights
-            if "height" in buildings_gdf.columns:
-                building_heights = buildings_gdf["height"].fillna(3.0).values
+            if "hauteur" in buildings_gdf.columns:
+                building_heights = buildings_gdf["hauteur"].fillna(3.0).values
             else:
                 building_heights = np.full(len(buildings_gdf), 3.0)
 
@@ -170,19 +180,19 @@ def main():
 
             # Save DSM
             dsm_path = str(output_path / "DSM.tif")
-            with rasterio.open(
-                dsm_path,
-                "w",
-                driver="GTiff",
-                height=dsm_data.shape[0],
-                width=dsm_data.shape[1],
-                count=1,
-                dtype=dsm_data.dtype,
-                crs=dem_crs,
-                transform=dem_transform,
-                compress="lzw",
-            ) as dst:
-                dst.write(dsm_data, 1)
+            #with rasterio.open(
+            #    dsm_path,
+            #       "w",
+            #    driver="GTiff",
+            #    height=dsm_data.shape[0],
+            #    width=dsm_data.shape[1],
+            #    count=1,
+            #    dtype=dsm_data.dtype,
+            #    crs=dem_crs,
+            #    transform=dem_transform,
+            #    compress="lzw",
+            #) as dst:
+            #    dst.write(dsm_data, 1)
 
             print(f"✅ DSM saved to: {dsm_path}")
     else:
@@ -247,16 +257,14 @@ def main():
     if not HAS_UMEPR:
         print("⚠️  Skipping SVF calculation - umepr not available")
     elif dsm_path and os.path.exists(dsm_path):
-        # Get bounding box in working CRS for SVF calculation
-        # Convert WGS84 bbox to working CRS
-        from pyproj import Transformer
+        # Get bounding box from the actual raster bounds
+        # This ensures the bbox matches exactly with the raster extent
+        with rasterio.open(dsm_path) as dsm_src:
+            # Get the actual bounds of the raster
+            bounds = dsm_src.bounds
+            total_extents = [bounds.left, bounds.bottom, bounds.right, bounds.top]
 
-        transformer = Transformer.from_crs(
-            "EPSG:4326", f"EPSG:{working_crs}", always_xy=True
-        )
-        minx, miny = transformer.transform(bbox_wgs84[0], bbox_wgs84[1])
-        maxx, maxy = transformer.transform(bbox_wgs84[2], bbox_wgs84[3])
-        total_extents = [minx, miny, maxx, maxy]
+        print(f"📐 Using raster bounds for SVF: {total_extents}")
 
         svf_output_dir = str(output_path / "svf")
         os.makedirs(svf_output_dir, exist_ok=True)
@@ -269,7 +277,10 @@ def main():
                 cdsm_path=cdsm_path
                 if cdsm_path and os.path.exists(cdsm_path)
                 else None,
+                trunk_ratio_perc=25,
                 trans_veg_perc=3,  # 3% transmissivity for vegetation
+                use_tiled_loading=False,
+                tile_size=200,
             )
             print(f"✅ SVF calculation complete! Output in: {svf_output_dir}")
         except Exception as e:
@@ -285,6 +296,11 @@ def main():
         print("\n" + "=" * 60)
         print("Step 7: Generating wall heights for SOLWEIG...")
         print("=" * 60)
+
+        # Get bounding box from the actual raster bounds
+        with rasterio.open(dsm_path) as dsm_src:
+            bounds = dsm_src.bounds
+            total_extents = [bounds.left, bounds.bottom, bounds.right, bounds.top]
 
         try:
             walls_output_dir = str(output_path / "walls")
@@ -314,10 +330,17 @@ def main():
     if HAS_UMEP and os.path.exists(str(output_path / "walls")):
         print(f"  - Wall heights: {output_path / 'walls'}")
 
-    print("\n💡 Next steps:")
-    print("  - Use the generated DSM and SVF for SOLWEIG thermal comfort analysis")
-    print("  - Configure SOLWEIG with configsolweig.ini and parametersforsolweig.json")
-    print("  - Run: solweig_runner_rust.SolweigRunRust(...).run()")
+    SRR = solweig_runner_rust.SolweigRunRust(
+        "configsolweig.ini", "parametersforsolweig.json", use_tiled_loading=False
+    )
+    SRR.run()
+
+    # SRC = solweig_runner_core.SolweigRunCore(
+    #    "configsolweig.ini",
+    #    "parametersforsolweig.json",
+    #    use_tiled_loading=False,
+    # )
+    # SRC.run()
 
 
 if __name__ == "__main__":

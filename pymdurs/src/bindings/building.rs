@@ -124,7 +124,6 @@ impl PyBuilding {
                 let nombre_d_etages_py = option_vec_f64_to_pylist(py, &nombre_d_etages_vec)?;
                 let hauteur_2_py = option_vec_f64_to_pylist(py, &hauteur_2_vec)?;
                 let no_hauteur_py = vec_bool_to_pylist(py, &no_hauteur_vec)?;
-
                 // Create pandas DataFrame
                 let data = PyDict::new(py);
                 data.set_item("hauteur", height_py)?;

@@ -37,19 +37,12 @@ def main():
     # Following Python: classification_list=[3, 4, 5, 9]
     # 2 = Ground, 3 = Low Vegetation, 4 = Medium Vegetation, 5 = High Vegetation, 9 = Water
     classification_list = [3, 4, 5, 9]  # Vegetation and water classes
+    lidar.run(file_name="CDSM.tif", classification_list=classification_list)
 
-    # Run LiDAR processing workflow
-    # Following Python: lidar_tif = lidar.to_tif(write_out_file=True, classification_list=[3, 4, 5, 9])
-    print("⏳ Processing LiDAR data...")
-    print("   - Requesting LAZ files from WFS...")
-    print("   - Downloading and loading points...")
-    print("   - Creating DSM/DTM/CHM rasters...")
-    print("   - Saving GeoTIFF...")
+    classification_list = [2, 6]  # Ground and buildings classes
 
     output_path = lidar.run(
-        classification_list=classification_list,
-        resolution=1.0,  # 1 meter resolution
-        write_out_file=True,
+        file_name="DSM.tif", classification_list=classification_list
     )
 
     print(f"✅ LiDAR processing complete!")

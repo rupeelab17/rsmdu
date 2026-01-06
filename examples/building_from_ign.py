@@ -39,6 +39,15 @@ def main():
     print("📊 Converting to pandas DataFrame...")
     df = buildings.to_pandas()
 
+    geojson = buildings.get_geojson()
+    print(geojson)
+
+    if geojson and "features" in geojson:
+        num_features = len(geojson["features"])
+        print(f"✅ Loaded {num_features} buildings")
+    else:
+        print("✅ Buildings data loaded")
+
     print("\n📈 DataFrame info:")
     print(df.info())
     print("\n📊 First few rows:")

@@ -4,13 +4,13 @@ build-backend = "maturin"
 
 [project]
 name = "pymdurs"
-version = "0.1.0"
+version = "0.1.1"
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Python bindings"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
 authors = [
-    { name = "Boris Brangeon", email = "boris.boris@plateforme-tipee.com" }
+    { name = "Boris Brangeon", email = "boris.brangeon@plateforme-tipee.com" }
 ]
 classifiers = [
     "Programming Language :: Rust",
@@ -23,7 +23,10 @@ classifiers = [
 
 dependencies = [
     "pandas>=2.0.0",
-    "numpy>=2.0.2"
+    "numpy>=2.0.2",
+    "geopandas>=1.0.1",
+    "rasterio>=1.4.3",
+    "umep>=0.0.1a18",
 ]
 
 [project.optional-dependencies]
@@ -51,11 +54,6 @@ addopts = "-s"
 manifest-path = "pymdurs/Cargo.toml"
 features = []
 module-name = "pymdurs"
-python-source = "pymdurs"
-
-
-[tool.setuptools]
-packages = ["pymdurs"]
 
 [tool.ruff.format]
 quote-style = "double"
