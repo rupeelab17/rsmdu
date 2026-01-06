@@ -19,6 +19,7 @@ Note: On Apple Silicon (ARM64), umepr may require the x86_64 target:
 """
 
 import os
+import shutil
 from pathlib import Path
 
 import geopandas as gpd
@@ -178,21 +179,21 @@ def main():
             # Create DSM by adding building heights to DEM
             dsm_data = dem_data + building_raster
 
-            # Save DSM
-            dsm_path = str(output_path / "DSM.tif")
-            #with rasterio.open(
-            #    dsm_path,
-            #       "w",
-            #    driver="GTiff",
-            #    height=dsm_data.shape[0],
-            #    width=dsm_data.shape[1],
-            #    count=1,
-            #    dtype=dsm_data.dtype,
-            #    crs=dem_crs,
-            #    transform=dem_transform,
-            #    compress="lzw",
-            #) as dst:
-            #    dst.write(dsm_data, 1)
+            # Save DSM (this is the base reference)
+            dsm_path = str(output_path / "DSM_1.tif")
+            with rasterio.open(
+                dsm_path,
+                "w",
+                driver="GTiff",
+                height=dsm_data.shape[0],
+                width=dsm_data.shape[1],
+                count=1,
+                dtype=dsm_data.dtype,
+                crs=dem_crs,
+                transform=dem_transform,
+                compress="lzw",
+            ) as dst:
+                dst.write(dsm_data, 1)
 
             print(f"✅ DSM saved to: {dsm_path}")
     else:
@@ -330,10 +331,118 @@ def main():
     if HAS_UMEP and os.path.exists(str(output_path / "walls")):
         print(f"  - Wall heights: {output_path / 'walls'}")
 
-    SRR = solweig_runner_rust.SolweigRunRust(
-        "configsolweig.ini", "parametersforsolweig.json", use_tiled_loading=False
-    )
-    SRR.run()
+    # Force DEM to match DSM dimensions (DSM is the base) - using rasterio
+    print("\n" + "=" * 60)
+    print("Resampling DEM to match DSM dimensions (DSM is the base)...")
+    print("=" * 60)
+
+    if dsm_path and os.path.exists(dsm_path) and os.path.exists(dem_tiff_path):
+        from rasterio.warp import Resampling, reproject
+
+        # Read DSM to get target dimensions and transform (DSM is the base reference)
+        with rasterio.open(dsm_path) as dsm_src:
+            dsm_shape = (dsm_src.height, dsm_src.width)
+            dsm_transform = dsm_src.transform
+            dsm_crs = dsm_src.crs
+            dsm_dtype = dsm_src.dtypes[0]
+
+        # Read original DEM
+        with rasterio.open(dem_tiff_path) as dem_src:
+            dem_data = dem_src.read(1)
+            dem_transform = dem_src.transform
+            dem_crs = dem_src.crs
+
+        # Check if resampling is needed
+        if dem_data.shape != dsm_shape:
+            print(f"   Original DEM shape: {dem_data.shape}")
+            print(f"   Target DSM shape: {dsm_shape}")
+            print("   Resampling DEM to match DSM using rasterio...")
+
+            # Create resampled DEM array with DSM shape
+            resampled_dem = np.zeros(dsm_shape, dtype=dsm_dtype)
+
+            # Reproject/resample DEM to match DSM exactly
+            reproject(
+                source=dem_data,
+                destination=resampled_dem,
+                src_transform=dem_transform,
+                src_crs=dem_crs,
+                dst_transform=dsm_transform,
+                dst_crs=dsm_crs,
+                resampling=Resampling.bilinear,
+            )
+
+            # Save resampled DEM temporarily
+            dem_resampled_path = str(output_path / "DEM_resampled.tif")
+            with rasterio.open(
+                dem_resampled_path,
+                "w",
+                driver="GTiff",
+                height=dsm_shape[0],
+                width=dsm_shape[1],
+                count=1,
+                dtype=resampled_dem.dtype,
+                crs=dsm_crs,
+                transform=dsm_transform,
+                compress="lzw",
+            ) as dst:
+                dst.write(resampled_dem, 1)
+
+            print(f"✅ Resampled DEM saved to: {dem_resampled_path}")
+            print(f"   Resampled DEM dimensions: {resampled_dem.shape} (matching DSM)")
+
+            # Replace original DEM with resampled version (so config file still works)
+            shutil.move(dem_resampled_path, dem_tiff_path)
+            print("   Replaced original DEM with resampled version")
+        else:
+            print(f"✅ DEM and DSM already have matching shapes: {dem_data.shape}")
+
+        # Final verification
+        with (
+            rasterio.open(dem_tiff_path) as dem_src,
+            rasterio.open(dsm_path) as dsm_src,
+        ):
+            dem_shape_final = (dem_src.height, dem_src.width)
+            dsm_shape_final = (dsm_src.height, dsm_src.width)
+            if dem_shape_final == dsm_shape_final:
+                print(f"✅ Verified: DEM and DSM shapes match: {dem_shape_final}")
+            else:
+                print(
+                    f"⚠️  Warning: Shapes still don't match - DEM: {dem_shape_final}, DSM: {dsm_shape_final}"
+                )
+    else:
+        print("⚠️  Cannot resample DEM - missing DSM or original DEM")
+
+    # Step 9: Run SOLWEIG
+    if HAS_UMEPR and dsm_path and os.path.exists(dsm_path):
+        print("\n" + "=" * 60)
+        print("Step 9: Running SOLWEIG...")
+        print("=" * 60)
+
+        try:
+            SRR = solweig_runner_rust.SolweigRunRust(
+                "configsolweig.ini",
+                "parametersforsolweig.json",
+                use_tiled_loading=False,
+                tile_size=200,
+            )
+            SRR.run()
+            print("✅ SOLWEIG run complete!")
+        except Exception as e:
+            print(f"⚠️  SOLWEIG run failed: {e}")
+            print(f"   Error type: {type(e).__name__}")
+            if "OutOfBoundsDatetime" in str(type(e).__name__) or "Out of bounds" in str(
+                e
+            ):
+                print("\n   💡 Tip: The EPW file may have corrupted date values.")
+                print("   Try:")
+                print("   1. Download a fresh EPW file from climate.onebuilding.org")
+                print("   2. Or set use_epw_file=0 in configsolweig.ini to skip EPW")
+                import traceback
+
+                traceback.print_exc()
+    else:
+        print("⚠️  Skipping SOLWEIG - missing requirements or DSM not available")
 
     # SRC = solweig_runner_core.SolweigRunCore(
     #    "configsolweig.ini",

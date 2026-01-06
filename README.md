@@ -159,6 +159,7 @@ maturin develop
 **Note**: On Apple Silicon, if you get an error about missing `x86_64-apple-darwin` target, use `--target aarch64-apple-darwin` explicitly.
 
 **Important**: Maturin requires an active Python environment:
+
 - **Conda**: Activate your conda environment first (`conda activate base` or your environment)
 - **venv**: Create and activate a virtual environment (`python3 -m venv .venv && source .venv/bin/activate`)
 - Maturin will detect the environment via `CONDA_PREFIX` or `VIRTUAL_ENV` environment variables
@@ -662,16 +663,16 @@ Contributions are welcome! This project follows standard Rust and Python best pr
    ```bash
    cd pymdurs
    pip install maturin
-   
+
    # Activate your Python environment (conda, venv, etc.)
    # For Conda:
    conda activate base  # or your environment
    # For venv:
    # source .venv/bin/activate
-   
+
    maturin develop --target aarch64-apple-darwin  # or your target
    ```
-   
+
    **Note**: Maturin requires either a virtual environment (venv) or Conda environment to be active. Make sure `VIRTUAL_ENV` or `CONDA_PREFIX` is set.
 
 4. **Set up WebAssembly development:**
