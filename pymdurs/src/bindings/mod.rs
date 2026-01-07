@@ -4,6 +4,7 @@
 pub mod bounding_box;
 pub mod building;
 pub mod cadastre;
+pub mod cosia;
 pub mod dem;
 pub mod geo_core;
 pub mod iris;
@@ -18,6 +19,7 @@ pub mod water;
 pub use bounding_box::PyBoundingBox;
 pub use building::PyBuilding;
 pub use cadastre::PyCadastre;
+pub use cosia::PyCosia;
 pub use dem::PyDem;
 pub use geo_core::PyGeoCore;
 pub use iris::PyIris;

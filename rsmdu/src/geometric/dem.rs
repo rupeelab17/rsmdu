@@ -18,6 +18,8 @@ pub struct Dem {
     path_save_mask: PathBuf,
     /// Path to temporary TIFF file from IGN API
     path_temp_tiff: PathBuf,
+    /// Path to save the clipped DEM TIFF file
+    path_save_tiff_clip: PathBuf,
     /// GeoCore for CRS handling
     pub geo_core: GeoCore,
     /// Bounding box for the DEM area
@@ -38,6 +40,7 @@ impl Dem {
         );
 
         let path_save_tiff = output_path_buf.join("DEM.tif");
+        let path_save_tiff_clip = output_path_buf.join("DEM_clip.tif");
         let path_save_mask = output_path_buf.join("mask.shp");
         let path_temp_tiff = PathBuf::from(TEMP_PATH).join("dem.tiff");
 
@@ -55,6 +58,12 @@ impl Dem {
                 path_save_tiff
             ))?;
         }
+        if path_save_tiff_clip.exists() {
+            std::fs::remove_file(&path_save_tiff_clip).context(format!(
+                "Failed to remove existing file: {:?}",
+                path_save_tiff_clip
+            ))?;
+        }
 
         Ok(Dem {
             ign_collect: IgnCollect::new()?,
@@ -62,6 +71,7 @@ impl Dem {
             path_save_tiff,
             path_save_mask,
             path_temp_tiff,
+            path_save_tiff_clip,
             geo_core: GeoCore::default(), // Default to EPSG:2154 (Lambert-93)
             bbox: None,
         })
@@ -205,16 +215,32 @@ impl Dem {
         let scaled_max_x = center_x + (width * 0.85 / 2.0);
         let scaled_max_y = center_y + (height * 0.85 / 2.0);
 
-        // Create scaled rectangle (for future shapefile export)
-        // Python: gdf_Bbox_mask_2154.to_file(self.path_save_mask, driver="ESRI Shapefile")
-        // Note: Shapefile export is temporarily disabled due to GDAL issues
-        // For now, we'll just log the geometry - export can be added later
-        let _scaled_rect = Rect::new(
+        // Create scaled rectangle
+        // Python: bbox_final = box(bbox[0], bbox[1], bbox[2], bbox[3])
+        //         gdf_bbox_mask_2154 = gpd.GeoDataFrame(gpd.GeoSeries(bbox_final), columns=["geometry"], crs="epsg:2154")
+        let scaled_rect = Rect::new(
             geo::coord! { x: scaled_min_x, y: scaled_min_y },
             geo::coord! { x: scaled_max_x, y: scaled_max_y },
         );
 
-        println!("Mask geometry created (shapefile export temporarily disabled)");
+        // Convert Rect to Polygon for shapefile export
+        let polygon: geo::Polygon<f64> = scaled_rect.into();
+
+        // Export to shapefile
+        // Python: gdf_bbox_mask_2154.scale(xfact=0.85, yfact=0.85).to_file(self.path_save_mask, driver="ESRI Shapefile")
+        #[cfg(not(feature = "wasm"))]
+        {
+            self.export_mask_to_shapefile(&polygon)?;
+            println!("Mask shapefile saved to: {:?}", self.path_save_mask);
+            //self.warp_and_clip_dem(&self.path_save_tiff, &self.path_save_tiff_clip)?;
+            //println!("DEM warped and clipped to: {:?}", self.path_save_mask);
+        }
+
+        #[cfg(feature = "wasm")]
+        {
+            println!("Mask geometry created (shapefile export disabled in WASM mode)");
+        }
+
         println!(
             "  Scaled Bbox (EPSG:2154): ({:.2}, {:.2}) to ({:.2}, {:.2})",
             scaled_min_x, scaled_min_y, scaled_max_x, scaled_max_y
@@ -223,6 +249,169 @@ impl Dem {
             "  Original Bbox (EPSG:2154): ({:.2}, {:.2}) to ({:.2}, {:.2})",
             min_x, min_y, max_x, max_y
         );
+
+        Ok(())
+    }
+
+    /// Export mask polygon to shapefile
+    /// Following Python: gdf.to_file(self.path_save_mask, driver="ESRI Shapefile")
+    /// Uses ogr2ogr command-line tool for reliable shapefile creation
+    #[cfg(not(feature = "wasm"))]
+    fn export_mask_to_shapefile(&self, polygon: &geo::Polygon<f64>) -> Result<()> {
+        use std::process::Command;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        // Remove existing shapefile if it exists
+        if self.path_save_mask.exists() {
+            // Remove all shapefile components (.shp, .shx, .dbf, .prj)
+            let base_path = self.path_save_mask.with_extension("");
+            for ext in &[".shp", ".shx", ".dbf", ".prj"] {
+                let file_path = base_path.with_extension(ext);
+                if file_path.exists() {
+                    let _ = std::fs::remove_file(&file_path);
+                }
+            }
+        }
+
+        // Create output directory if it doesn't exist
+        if let Some(parent) = self.path_save_mask.parent() {
+            std::fs::create_dir_all(parent)
+                .context(format!("Failed to create output directory: {:?}", parent))?;
+        }
+
+        // Create temporary GeoJSON file
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let temp_geojson = std::env::temp_dir().join(format!("mask_{}.geojson", timestamp));
+
+        // Convert polygon to GeoJSON
+        use geojson::{Feature, GeoJson};
+        let geometry: geojson::Geometry = polygon
+            .try_into()
+            .context("Failed to convert polygon to GeoJSON geometry")?;
+
+        let feature = Feature {
+            bbox: None,
+            geometry: Some(geometry),
+            id: None,
+            properties: None,
+            foreign_members: None,
+        };
+
+        let geojson = GeoJson::FeatureCollection(geojson::FeatureCollection {
+            bbox: None,
+            features: vec![feature],
+            foreign_members: None,
+        });
+
+        // Write temporary GeoJSON
+        std::fs::write(&temp_geojson, geojson.to_string())
+            .context("Failed to write temporary GeoJSON file")?;
+
+        // Use ogr2ogr to convert GeoJSON to Shapefile
+        // The polygon is already in EPSG:2154, so we specify the source CRS
+        // Python: gdf_bbox_mask_2154 has crs="epsg:2154"
+        let status = Command::new("ogr2ogr")
+            .arg("-f")
+            .arg("ESRI Shapefile")
+            .arg("-s_srs")
+            .arg("EPSG:2154") // Source CRS: polygon is already in EPSG:2154
+            .arg("-t_srs")
+            .arg("EPSG:2154") // Target CRS: keep EPSG:2154
+            .arg(&self.path_save_mask)
+            .arg(&temp_geojson)
+            .status()
+            .context(
+                "Failed to execute ogr2ogr. Make sure GDAL is installed and ogr2ogr is in PATH",
+            )?;
+
+        // Clean up temporary GeoJSON
+        let _ = std::fs::remove_file(&temp_geojson);
+
+        if !status.success() {
+            anyhow::bail!("ogr2ogr failed to convert GeoJSON to shapefile");
+        }
+
+        println!("Mask shapefile saved to: {:?}", self.path_save_mask);
+
+        Ok(())
+    }
+
+    /// Warp and clip DEM using GDAL Warp
+    /// Following Python: gdal.Warp(destNameOrDestDS='DEM_clip.tif', srcDSOrSrcDSTab='DEM.tif', options=warp_options)
+    /// Uses gdalwarp command-line tool for reliable raster warping and clipping
+    #[cfg(not(feature = "wasm"))]
+    pub fn warp_and_clip_dem(&self, input_dem_path: &Path, output_clip_path: &Path) -> Result<()> {
+        use std::process::Command;
+
+        // Ensure mask shapefile exists
+        if !self.path_save_mask.exists() {
+            anyhow::bail!(
+                "Mask shapefile not found at {:?}. Call generate_mask_and_adapt_dem() first.",
+                self.path_save_mask
+            );
+        }
+
+        // Ensure input DEM exists
+        if !input_dem_path.exists() {
+            anyhow::bail!("Input DEM not found at {:?}", input_dem_path);
+        }
+
+        // Create output directory if it doesn't exist
+        if let Some(parent) = output_clip_path.parent() {
+            std::fs::create_dir_all(parent)
+                .context(format!("Failed to create output directory: {:?}", parent))?;
+        }
+
+        // Remove existing output file if it exists
+        if output_clip_path.exists() {
+            std::fs::remove_file(output_clip_path).context(format!(
+                "Failed to remove existing file: {:?}",
+                output_clip_path
+            ))?;
+        }
+
+        // Build gdalwarp command with options equivalent to Python gdal.WarpOptions
+        // Python options:
+        //   format='GTiff'
+        //   xRes=1, yRes=1
+        //   outputType=gdalconst.GDT_Float32
+        //   dstNodata=None
+        //   dstSRS='EPSG:2154'
+        //   cropToCutline=True
+        //   cutlineDSName='mask.shp'
+        //   cutlineLayer='mask'
+        let status = Command::new("gdalwarp")
+            .arg("-of")
+            .arg("GTiff") // format='GTiff'
+            .arg("-tr")
+            .arg("1")
+            .arg("1") // xRes=1, yRes=1
+            .arg("-ot")
+            .arg("Float32") // outputType=gdalconst.GDT_Float32
+            .arg("-t_srs")
+            .arg("EPSG:2154") // dstSRS='EPSG:2154'
+            .arg("-crop_to_cutline") // cropToCutline=True
+            .arg("-cutline")
+            .arg(&self.path_save_mask) // cutlineDSName='mask.shp'
+            .arg("-cl")
+            .arg("mask") // cutlineLayer='mask'
+            .arg("-co")
+            .arg("COMPRESS=LZW") // Add compression like Python version
+            .arg(input_dem_path)
+            .arg(output_clip_path)
+            .status()
+            .context(
+                "Failed to execute gdalwarp. Make sure GDAL is installed and gdalwarp is in PATH",
+            )?;
+
+        if !status.success() {
+            anyhow::bail!("gdalwarp failed to warp and clip DEM");
+        }
+
+        println!("DEM warped and clipped to: {:?}", output_clip_path);
 
         Ok(())
     }

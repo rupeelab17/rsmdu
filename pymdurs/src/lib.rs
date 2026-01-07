@@ -3,8 +3,8 @@ use pyo3::prelude::*;
 mod bindings;
 
 use bindings::{
-    PyBoundingBox, PyBuilding, PyCadastre, PyDem, PyGeoCore, PyIris, PyLcz, PyLidar, PyRnb, PyRoad,
-    PyVegetation, PyWater,
+    PyBoundingBox, PyBuilding, PyCadastre, PyCosia, PyDem, PyGeoCore, PyIris, PyLcz, PyLidar, PyRnb,
+    PyRoad, PyVegetation, PyWater,
 };
 
 /// Python bindings for pymdurs
@@ -37,8 +37,9 @@ fn register_geometric_module(py_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Register all geometric classes
     submodule.add_class::<PyBuilding>()?;
-    submodule.add_class::<PyDem>()?;
     submodule.add_class::<PyCadastre>()?;
+    submodule.add_class::<PyCosia>()?;
+    submodule.add_class::<PyDem>()?;
     submodule.add_class::<PyIris>()?;
     submodule.add_class::<PyLcz>()?;
     submodule.add_class::<PyLidar>()?;
@@ -49,8 +50,9 @@ fn register_geometric_module(py_module: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Add aliases for Pythonic API (Building instead of PyBuilding)
     submodule.setattr("Building", submodule.getattr("PyBuilding")?)?;
-    submodule.setattr("Dem", submodule.getattr("PyDem")?)?;
     submodule.setattr("Cadastre", submodule.getattr("PyCadastre")?)?;
+    submodule.setattr("Cosia", submodule.getattr("PyCosia")?)?;
+    submodule.setattr("Dem", submodule.getattr("PyDem")?)?;
     submodule.setattr("Iris", submodule.getattr("PyIris")?)?;
     submodule.setattr("Lcz", submodule.getattr("PyLcz")?)?;
     submodule.setattr("Lidar", submodule.getattr("PyLidar")?)?;

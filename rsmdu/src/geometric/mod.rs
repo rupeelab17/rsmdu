@@ -1,5 +1,6 @@
 pub mod building;
 pub mod cadastre;
+pub mod cosia;
 pub mod dem;
 pub mod iris;
 pub mod lcz;
