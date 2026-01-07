@@ -37,7 +37,7 @@ impl IgnCollect {
     pub fn new() -> Result<Self> {
         let mut ign_keys = HashMap::new();
         ign_keys.insert("buildings".to_string(), "BDTOPO_V3:batiment".to_string());
-        ign_keys.insert("cosia".to_string(), "IGNF_COSIA_2021-2023_WMS".to_string());
+        ign_keys.insert("cosia".to_string(), "IGNF_COSIA_2021-2023".to_string());
         ign_keys.insert("water".to_string(), "BDTOPO_V3:plan_d_eau".to_string());
         ign_keys.insert("road".to_string(), "BDTOPO_V3:troncon_de_route".to_string());
         ign_keys.insert(
@@ -105,7 +105,7 @@ impl IgnCollect {
         // This works regardless of where the binary is executed from
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let csv_path = PathBuf::from(manifest_dir)
-            .join("src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv");
+            .join("src/collect/ign/data/Tableau-suivi-services-web-01-08-2025.csv");
 
         if csv_path.exists() {
             return Ok(csv_path);
@@ -113,8 +113,8 @@ impl IgnCollect {
 
         // Fallback: try relative paths from current working directory
         let fallback_paths = vec![
-            PathBuf::from("src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv"),
-            PathBuf::from("./src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv"),
+            PathBuf::from("src/collect/ign/data/Tableau-suivi-services-web-01-08-2025.csv"),
+            PathBuf::from("./src/collect/ign/data/Tableau-suivi-services-web-01-08-2025.csv"),
         ];
 
         for path in fallback_paths {
@@ -124,7 +124,7 @@ impl IgnCollect {
         }
 
         anyhow::bail!(
-            "CSV file not found. Please ensure Tableau-suivi-services-web-23-05-2025.csv is in src/collect/ign/data/. \
+            "CSV file not found. Please ensure Tableau-suivi-services-web-01-08-2025.csv is in src/collect/ign/data/. \
             Tried: {} and relative paths",
             csv_path.display()
         );
@@ -351,7 +351,7 @@ impl IgnCollect {
         let resolution = 1.0; // Default resolution in meters/pixel
 
         // Calculate center (Python: lon_center = (xmin + xmax) / 2)
-        let _lon_center = (bbox.min_x + bbox.max_x) / 2.0;
+        // let _lon_center = (bbox.min_x + bbox.max_x) / 2.0;
         let lat_center = (bbox.min_y + bbox.max_y) / 2.0;
 
         // Conversion deg → m (approximate, valid near France)
@@ -370,7 +370,7 @@ impl IgnCollect {
         // Python: if key == "ortho" and version == "1.3.0" and crs == "EPSG:4326": Bbox_str = [ymin, xmin, ymax, xmax]
         // Python for dem: "Bbox": f"{self._Bbox[1]},{self._Bbox[0]},{self._Bbox[3]},{self._Bbox[2]}"
         // This means: [ymin, xmin, ymax, xmax]
-        let bbox_str = if matches!(key, "ortho" | "dem") {
+        let bbox_str = if matches!(key, "ortho" | "dem" | "cosia") {
             format!(
                 "{},{},{},{}",
                 bbox.min_y, bbox.min_x, bbox.max_y, bbox.max_x
@@ -402,7 +402,7 @@ impl IgnCollect {
             // For DEM and other raster services, use wms-r endpoint with exact format
             // Format: LAYERS={couche}&FORMAT={format}&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS={crs}&Bbox={Xmin,Ymin,Xmax,Ymax}&WIDTH={largeur}&HEIGHT={hauteur}
             format!(
-                "https://data.geopf.fr/wms-r?LAYERS={}&FORMAT=image/geotiff&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS=EPSG:4326&Bbox={}&WIDTH={}&HEIGHT={}",
+                "https://data.geopf.fr/wms-r/wms?LAYERS={}&FORMAT=image/geotiff&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&CRS=EPSG:4326&Bbox={}&WIDTH={}&HEIGHT={}",
                 typename, bbox_str, width_px, height_px
             )
         } else {

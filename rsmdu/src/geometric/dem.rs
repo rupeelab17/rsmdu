@@ -19,7 +19,7 @@ pub struct Dem {
     /// Path to temporary TIFF file from IGN API
     path_temp_tiff: PathBuf,
     /// Path to save the clipped DEM TIFF file
-    path_save_tiff_clip: PathBuf,
+    // path_save_tiff_clip: PathBuf,
     /// GeoCore for CRS handling
     pub geo_core: GeoCore,
     /// Bounding box for the DEM area
@@ -40,7 +40,7 @@ impl Dem {
         );
 
         let path_save_tiff = output_path_buf.join("DEM.tif");
-        let path_save_tiff_clip = output_path_buf.join("DEM_clip.tif");
+        // let path_save_tiff_clip = output_path_buf.join("DEM_clip.tif");
         let path_save_mask = output_path_buf.join("mask.shp");
         let path_temp_tiff = PathBuf::from(TEMP_PATH).join("dem.tiff");
 
@@ -58,12 +58,12 @@ impl Dem {
                 path_save_tiff
             ))?;
         }
-        if path_save_tiff_clip.exists() {
+        /*if path_save_tiff_clip.exists() {
             std::fs::remove_file(&path_save_tiff_clip).context(format!(
                 "Failed to remove existing file: {:?}",
                 path_save_tiff_clip
             ))?;
-        }
+        }*/
 
         Ok(Dem {
             ign_collect: IgnCollect::new()?,
@@ -71,7 +71,7 @@ impl Dem {
             path_save_tiff,
             path_save_mask,
             path_temp_tiff,
-            path_save_tiff_clip,
+            //path_save_tiff_clip,
             geo_core: GeoCore::default(), // Default to EPSG:2154 (Lambert-93)
             bbox: None,
         })

@@ -193,13 +193,25 @@ def main():
                 options=warp_options,
             )
             print(f"✅ CDSM clipped to: {cdsm_clip_path}")
+
+        # Clip Landcover
+        landcover_clip_path = Path(output_folder_str) / "landcover_clip.tif"
+        landcover_source = Path(output_folder_str) / "landcover.tif"
+        if landcover_source.exists():
+            gdal.Warp(
+                destNameOrDestDS=str(landcover_clip_path),
+                srcDSOrSrcDSTab=str(landcover_source),
+                options=warp_options,
+            )
+            print(f"✅ Landcover clipped to: {landcover_clip_path}")
     else:
         print("⚠️  Mask shapefile not found, skipping clipping")
 
     # Set paths for later steps
-    dsm_path = str(Path(output_folder_str) / "DSM_clip.tif")
-    cdsm_path = str(Path(output_folder_str) / "CDSM_clip.tif")
+    dsm_path = Path(output_folder_str) / "DSM_clip.tif"
+    cdsm_path = Path(output_folder_str) / "CDSM_clip.tif"
     dem_tiff_path = Path(output_folder_str) / "DEM_clip.tif"
+    lc_path = Path(output_folder_str) / "landcover_clip.tif"
 
     # ========================================================================
     # Step 4: Calculate Sky View Factor (SVF) using umepr
