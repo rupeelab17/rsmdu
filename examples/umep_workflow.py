@@ -69,7 +69,7 @@ def main():
 
     # Bounding box (La Rochelle area, France)
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
-    bbox_wgs84 = (-1.154894, 46.182639, -1.148361, 46.186820)
+    bbox_wgs84 = (-1.152704, 46.181627, -1.139893, 46.18699)
 
     # Working CRS (Lambert 93 - EPSG:2154)
     working_crs = 2154

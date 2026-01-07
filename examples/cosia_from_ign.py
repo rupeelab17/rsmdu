@@ -1,52 +1,359 @@
 """
-Example: Download Cosia (landcover) data from IGN API using rsmdu
+Example: Complete COSIA workflow - Download, vectorize and convert to UMEP format
 
 This example demonstrates how to:
-1. Create a Cosia instance
-2. Set a bounding box
-3. Download Cosia raster from IGN API via WMS-R
-4. Get output path for TIFF file
+1. Download Cosia (landcover) raster from IGN API
+2. Vectorize the COSIA raster by RGB color matching
+3. Classify polygons into COSIA landcover classes
+4. Convert to UMEP landcover classification format
+5. Rasterize to UMEP-compatible GeoTIFF
+
+Required dependencies:
+    pip install geopandas rasterio numpy shapely
 """
 
 import os
+from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import rasterio
+from rasterio.features import rasterize, shapes
+from rasterio.transform import from_bounds
+from shapely.geometry import shape
 
 import pymdurs
 
+# ========================================================================
+# COSIA Color to Class Mapping
+# ========================================================================
+TABLE_COLOR_COSIA = {
+    "Bâtiment": "#ce7079",
+    "Zone imperméable": "#a6aab7",
+    "Zone perméable": "#987752",
+    "Piscine": "#62d0ff",
+    "Serre": "#b9e2d4",
+    "Sol nu": "#bbb096",
+    "Surface eau": "#3375a1",
+    "Neige": "#e9effe",
+    "Conifère": "#216e2e",
+    "Feuillu": "#4c9129",
+    "Coupe": "#e48e4d",
+    "Broussaille": "#b5c335",
+    "Pelouse": "#8cd76a",
+    "Culture": "#decf55",
+    "Terre labourée": "#d0a349",
+    "Vigne": "#b08290",
+    "Autre": "#222222",
+}
+
+# COSIA to UMEP classification mapping
+COSIA_TO_UMEP = {
+    "Bâtiment": 2,  # Building
+    "Zone imperméable": 1,  # Paved
+    "Zone perméable": 6,  # Bare Soil
+    "Piscine": 7,  # Water
+    "Serre": 1,  # Paved
+    "Sol nu": 6,  # Bare Soil
+    "Surface eau": 7,  # Water
+    "Neige": 7,  # Water
+    "Conifère": 6,  # Bare Soil (trees not in UMEP, mapped to soil)
+    "Feuillu": 6,  # Bare Soil (trees not in UMEP, mapped to soil)
+    "Coupe": 5,  # Grass
+    "Broussaille": 5,  # Grass
+    "Pelouse": 5,  # Grass
+    "Culture": 5,  # Grass
+    "Terre labourée": 6,  # Bare Soil
+    "Vigne": 5,  # Grass
+    "Autre": 1,  # Paved
+}
+
+# UMEP labels
+UMEP_LABELS = {
+    1: "Paved",
+    2: "Building",
+    3: "Evergreen Trees",
+    4: "Deciduous Trees",
+    5: "Grass",
+    6: "Bare Soil",
+    7: "Water",
+}
+
+
+def hex_to_rgb(hex_color):
+    """Convert hex color to RGB tuple."""
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def geodataframe_to_tif_with_metadata(
+    gdf: gpd.GeoDataFrame,
+    output_tif: str,
+    column: str = "type",
+    resolution: float = 1.0,
+):
+    """
+    Convert a GeoDataFrame to TIF with classification metadata.
+
+    Args:
+        gdf: GeoDataFrame with geometries and classification column
+        output_tif: Output GeoTIFF path
+        column: Column name containing classification values
+        resolution: Pixel resolution in meters
+    """
+    print("\n📊 Conversion du GeoDataFrame en TIF...")
+    print(f"   Colonne: {column}, Résolution: {resolution} m")
+
+    # Validate GeoDataFrame
+    if len(gdf) == 0:
+        raise ValueError("Le GeoDataFrame est vide, impossible de créer un raster")
+
+    bounds = gdf.total_bounds
+    print(f"   Bounds: {bounds}")
+
+    # Calculate dimensions
+    width = int((bounds[2] - bounds[0]) / resolution)
+    height = int((bounds[3] - bounds[1]) / resolution)
+
+    # Validate dimensions
+    if width <= 0 or height <= 0:
+        raise ValueError(
+            f"Dimensions invalides: width={width}, height={height}. "
+            f"Bounds: {bounds}, Résolution: {resolution}m. "
+            f"Vérifiez que la résolution n'est pas trop grande par rapport à l'étendue."
+        )
+
+    print(f"   Dimensions calculées: {width}x{height} pixels")
+    transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+
+    # Rasterize
+    shapes_iter = ((geom, value) for geom, value in zip(gdf.geometry, gdf[column]))
+    raster = rasterize(
+        shapes=shapes_iter,
+        out_shape=(height, width),
+        transform=transform,
+        fill=0,
+        dtype=np.uint8,
+        all_touched=False,
+    )
+
+    # Statistics
+    print("\n=== Statistiques du raster ===")
+    print(f"Dimensions: {width}x{height} pixels")
+    print(f"Résolution: {resolution} m/pixel")
+    print(f"Superficie totale: {(width * height * resolution**2) / 10000:.2f} ha")
+
+    print("\nRépartition des types:")
+    for val in sorted(np.unique(raster)):
+        if val != 0:
+            count = np.sum(raster == val)
+            area_m2 = count * (resolution**2)
+            area_ha = area_m2 / 10000
+            percentage = (count / raster.size) * 100
+            label = UMEP_LABELS.get(val, "Unknown")
+            print(f"  {val} - {label:20s}: {area_ha:8.2f} ha ({percentage:5.2f}%)")
+
+    # Save with metadata
+    with rasterio.open(
+        output_tif,
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=1,
+        dtype=raster.dtype,
+        crs=gdf.crs,
+        transform=transform,
+        compress="lzw",
+        nodata=0,
+    ) as dst:
+        dst.write(raster, 1)
+
+        # Add metadata tags
+        dst.update_tags(
+            description="COSIA Land Cover Classification (UMEP format)",
+            resolution=f"{resolution}m",
+            classes=str(UMEP_LABELS),
+        )
+
+    print(f"\n✅ Fichier sauvegardé: {output_tif}")
+
+    return raster
+
+
+def vectorize_cosia_raster(cosia_tiff_path: str):
+    """
+    Vectorize COSIA raster by matching RGB colors to landcover classes.
+
+    Args:
+        cosia_tiff_path: Path to COSIA GeoTIFF file
+
+    Returns:
+        GeoDataFrame with classified polygons
+    """
+    print("\n🔍 Vectorisation du raster COSIA...")
+    print(f"   Fichier: {cosia_tiff_path}")
+
+    # Create RGB to class mapping
+    rgb_to_class = {
+        hex_to_rgb(color): classe for classe, color in TABLE_COLOR_COSIA.items()
+    }
+
+    with rasterio.open(cosia_tiff_path) as src:
+        # Read 3 bands (RGB)
+        image = src.read()  # Shape: (3, height, width)
+        transform = src.transform
+        crs = src.crs
+
+        # Combine RGB into single integer per pixel
+        # R * 256^2 + G * 256 + B
+        combined = (
+            (image[0].astype(np.uint32) << 16)
+            + (image[1].astype(np.uint32) << 8)
+            + image[2].astype(np.uint32)
+        )
+
+        # Vectorize
+        results = shapes(combined, transform=transform)
+
+        geoms = []
+        rgb_values = []
+
+        for geom, value in results:
+            # Decode integer to RGB
+            value_int = int(value) if isinstance(value, (float, np.floating)) else value
+            r = (value_int >> 16) & 255
+            g = (value_int >> 8) & 255
+            b = value_int & 255
+
+            geoms.append(shape(geom))
+            rgb_values.append((r, g, b))
+
+    gdf = gpd.GeoDataFrame({"rgb": rgb_values, "geometry": geoms}, crs=crs)
+    print(f"   {len(gdf)} polygones créés")
+
+    # Match colors to COSIA classes
+    def match_color(rgb):
+        """Find closest matching COSIA class by RGB color."""
+        min_dist = float("inf")
+        best = "Autre"
+        for target_rgb, classe in rgb_to_class.items():
+            dist = sum((a - b) ** 2 for a, b in zip(rgb, target_rgb))
+            if dist < min_dist:
+                min_dist = dist
+                best = classe
+        return best
+
+    gdf["classe"] = gdf["rgb"].apply(match_color)
+    gdf["couleur"] = gdf["classe"].map(TABLE_COLOR_COSIA)
+    gdf["type"] = gdf["classe"].map(COSIA_TO_UMEP)
+
+    # Drop RGB column
+    gdf = gdf.drop(columns=["rgb"])
+
+    print(f"✅ Vectorisation terminée: {len(gdf)} polygones classifiés")
+    print(f"   Classes trouvées: {gdf['classe'].value_counts().to_dict()}")
+
+    return gdf
+
 
 def main():
-    print("🌍 Loading Cosia (landcover) data from IGN API...")
+    """Main workflow: Download COSIA, vectorize, and convert to UMEP format."""
+    print("=" * 60)
+    print("🌍 COSIA Workflow: Download, Vectorize, and Convert to UMEP")
+    print("=" * 60)
 
-    # Create Cosia instance (using alias created by rsmdu_helper)
-    cosia = pymdurs.geometric.Cosia(output_path="./output")
+    # Configuration
+    output_folder = "./output"
+    output_path = Path(output_folder)
+    output_path.mkdir(parents=True, exist_ok=True)
+    output_folder_str = str(output_path)
 
-    # Set bounding box (La Rochelle area, France)
+    # Bounding box (La Rochelle area, France)
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
-    cosia.set_bbox(-1.154894, 46.182639, -1.148361, 46.186820)
+    bbox_wgs84 = (-1.152704, 46.181627, -1.139893, 46.18699)
+    working_crs = 2154  # Lambert 93
 
-    # Set CRS (optional, defaults to EPSG:2154)
-    cosia.set_crs(2154)
+    print("\n📦 Configuration:")
+    print(f"   Bounding box: {bbox_wgs84}")
+    print(f"   CRS: EPSG:{working_crs}")
+    print(f"   Output folder: {output_folder_str}")
 
-    print(f"📦 Bounding box set")
-    geo = cosia.geo_core
-    print(f"🗺️  CRS: {geo.epsg}")
+    # ========================================================================
+    # Step 1: Download COSIA from IGN API
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Step 1: Downloading COSIA from IGN API...")
+    print("=" * 60)
 
-    # Run Cosia processing: downloads from IGN API and saves
-    print("⏳ Downloading Cosia from IGN API...")
+    cosia = pymdurs.geometric.Cosia(output_path=output_folder_str)
+    cosia.set_bbox(*bbox_wgs84)
+    cosia.set_crs(working_crs)
+
+    print("⏳ Downloading COSIA from IGN API...")
     cosia = cosia.run_ign()
 
-    # Get output path
-    tiff_path = cosia.get_path_save_tiff()
+    cosia_tiff_path = cosia.get_path_save_tiff()
+    print(f"✅ COSIA downloaded: {cosia_tiff_path}")
 
-    print(f"✅ Cosia processing complete!")
-    print(f"📁 Cosia TIFF: {tiff_path}")
+    if os.path.exists(cosia_tiff_path):
+        size = os.path.getsize(cosia_tiff_path) / (1024 * 1024)  # MB
+        print(f"📊 File size: {size:.2f} MB")
 
-    # Check if file exists
-    if os.path.exists(tiff_path):
-        size = os.path.getsize(tiff_path) / (1024 * 1024)  # MB
-        print(f"📊 Cosia file size: {size:.2f} MB")
+    # ========================================================================
+    # Step 2: Vectorize COSIA raster
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Step 2: Vectorizing COSIA raster...")
+    print("=" * 60)
 
-    return cosia
+    gdf = vectorize_cosia_raster(cosia_tiff_path)
+
+    # Save vectorized shapefile
+    landcover_shp = output_path / "cosia_landcover.shp"
+    gdf.to_file(landcover_shp, driver="ESRI Shapefile")
+    print(f"✅ Shapefile saved: {landcover_shp}")
+
+    # ========================================================================
+    # Step 3: Convert to UMEP format and rasterize
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("Step 3: Converting to UMEP format and rasterizing...")
+    print("=" * 60)
+
+    # Convert to working CRS
+    gdf = gdf.to_crs(working_crs)
+
+    # Filter valid geometries
+    gdf_valid = gdf[gdf.geometry.notna()].copy()
+    if len(gdf_valid) == 0:
+        print("⚠️  Aucune géométrie valide, arrêt du traitement")
+        return
+
+    print(f"📊 {len(gdf_valid)} géométries valides sur {len(gdf)} totales")
+
+    # Rasterize to UMEP format
+    landcover_tif = output_path / "landcover.tif"
+    raster = geodataframe_to_tif_with_metadata(
+        gdf=gdf_valid,
+        output_tif=str(landcover_tif),
+        column="type",
+        resolution=1.0,  # 1 meter resolution
+    )
+
+    # ========================================================================
+    # Summary
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("✅ COSIA workflow complete!")
+    print("=" * 60)
+    print("📁 Output files:")
+    print(f"   - COSIA raster: {cosia_tiff_path}")
+    print(f"   - Landcover shapefile: {landcover_shp}")
+    print(f"   - UMEP landcover raster: {landcover_tif}")
+
+    return cosia, gdf, raster
 
 
 if __name__ == "__main__":
-    cosia = main()
+    cosia, gdf, raster = main()
