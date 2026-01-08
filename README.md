@@ -259,6 +259,10 @@ source .venv/bin/activate
 # Install maturin
 uv pip install maturin
 uv sync
+
+# For Windows
+uv pip install --no-cache-dir gdal
+# For Apple
 ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal
 unset VIRTUAL_ENV
 unset CONDA_PREFIX
