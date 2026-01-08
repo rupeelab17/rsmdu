@@ -247,18 +247,6 @@ xcode-select --install
    cargo --version
    ```
 
-### Building the Rust Library
-
-Once Rust is installed, clone and build the project:
-
-```bash
-git clone https://github.com/rupeelab17/pymdurs.git
-cd pymdurs
-cargo build --release
-```
-
-**Note**: The first build may take several minutes as it compiles all dependencies. Subsequent builds will be faster.
-
 ### Python Package
 
 Install from source using maturin:
@@ -266,11 +254,14 @@ Install from source using maturin:
 ```bash
 git clone https://github.com/rupeelab17/pymdurs.git
 cd pymdurs
+uv venv .venv --python 3.13
+source .venv/bin/activate
 # Install maturin
-pip install maturin
-
-# Navigate to Python package directory
-cd pymdurs
+uv pip install maturin
+uv sync
+ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal
+unset VIRTUAL_ENV
+unset CONDA_PREFIX
 
 # For Apple Silicon (ARM64) - use native target
 maturin develop --target aarch64-apple-darwin
@@ -290,11 +281,7 @@ maturin develop
 - **venv**: Create and activate a virtual environment (`python3 -m venv .venv && source .venv/bin/activate`)
 - Maturin will detect the environment via `CONDA_PREFIX` or `VIRTUAL_ENV` environment variables
 
-Or install directly (once published):
-
-```bash
-pip install pymdurs
-```
+````
 
 **Requirements:**
 
@@ -319,7 +306,7 @@ cd rsmdu-wasm
 
 # Build WASM package
 ./build.sh
-```
+````
 
 See `rsmdu-wasm/README.md` for detailed WebAssembly setup instructions.
 
