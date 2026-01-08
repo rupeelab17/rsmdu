@@ -327,7 +327,7 @@ let mut buildings = BuildingCollection::new(
     None,                              // set_crs (None = default EPSG:2154)
 )?;
 
-// Set bounding box (Python: buildings.Bbox = [...])
+// Set bounding box (Python: buildings.bbox = [...])
 buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
 
 // Run processing (Python: buildings = buildings.run())
@@ -633,7 +633,7 @@ pub struct BuildingCollection {
 `GeoCore` provides base functionality:
 
 - `epsg`: Coordinate Reference System (default: 2154)
-- `Bbox`: Bounding box
+- `bbox`: Bounding box
 - `output_path`: Output directory
 - `output_path_shp`: Shapefile output path
 - `filename_shp`: Shapefile filename
