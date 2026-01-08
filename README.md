@@ -252,7 +252,7 @@ xcode-select --install
 Install from source using maturin:
 
 ```bash
-git clone https://github.com/rupeelab17/pymdurs.git
+git clone https://github.com/rupeelab17/rsmdu.git
 cd pymdurs
 uv venv .venv --python 3.13
 source .venv/bin/activate
