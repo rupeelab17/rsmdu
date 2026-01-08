@@ -264,6 +264,8 @@ cargo build --release
 Install from source using maturin:
 
 ```bash
+git clone https://github.com/rupeelab17/pymdurs.git
+cd pymdurs
 # Install maturin
 pip install maturin
 
