@@ -257,17 +257,11 @@ def vectorize_cosia_raster(cosia_tiff_path: str):
     return gdf
 
 
-def main():
+def main(output_path: Path):
     """Main workflow: Download COSIA, vectorize, and convert to UMEP format."""
     print("=" * 60)
     print("🌍 COSIA Workflow: Download, Vectorize, and Convert to UMEP")
     print("=" * 60)
-
-    # Configuration
-    output_folder = "./output"
-    output_path = Path(output_folder)
-    output_path.mkdir(parents=True, exist_ok=True)
-    output_folder_str = str(output_path)
 
     # Bounding box (La Rochelle area, France)
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
@@ -277,7 +271,7 @@ def main():
     print("\n📦 Configuration:")
     print(f"   Bounding box: {bbox_wgs84}")
     print(f"   CRS: EPSG:{working_crs}")
-    print(f"   Output folder: {output_folder_str}")
+    print(f"   Output folder: {output_path}")
 
     # ========================================================================
     # Step 1: Download COSIA from IGN API
@@ -286,7 +280,7 @@ def main():
     print("Step 1: Downloading COSIA from IGN API...")
     print("=" * 60)
 
-    cosia = pymdurs.geometric.Cosia(output_path=output_folder_str)
+    cosia = pymdurs.geometric.Cosia(output_path=output_path)
     cosia.set_bbox(*bbox_wgs84)
     cosia.set_crs(working_crs)
 
@@ -356,4 +350,7 @@ def main():
 
 
 if __name__ == "__main__":
-    cosia, gdf, raster = main()
+    output_folder = "./output/umep_workflow"
+    output_path = Path(output_folder).absolute()
+    output_path.mkdir(parents=True, exist_ok=True)
+    cosia, gdf, raster = main(output_path=output_path)

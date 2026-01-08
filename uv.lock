@@ -2063,15 +2063,13 @@ dependencies = [
     { name = "rasterio", version = "1.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and python_full_version < '3.12'" },
     { name = "rasterio", version = "1.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "umep" },
+    { name = "umepr" },
 ]
 
 [package.optional-dependencies]
 dev = [
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-umep = [
-    { name = "umepr" },
 ]
 
 [package.metadata]
@@ -2082,9 +2080,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "rasterio", specifier = ">=1.4.3" },
     { name = "umep", specifier = ">=0.0.1a18" },
-    { name = "umepr", marker = "extra == 'umep'", git = "https://github.com/UMEP-dev/umep-rust.git" },
+    { name = "umepr", git = "https://github.com/UMEP-dev/umep-rust.git" },
 ]
-provides-extras = ["dev", "umep"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "pyogrio"

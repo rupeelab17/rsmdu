@@ -27,17 +27,12 @@ dependencies = [
     "geopandas>=1.0.1",
     "rasterio>=1.4.3",
     "umep>=0.0.1a18",
+    "umepr @ git+https://github.com/UMEP-dev/umep-rust.git",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-]
-umep = [
-    "umepr @ git+https://github.com/UMEP-dev/umep-rust.git",
-    # Note: umepr may require x86_64-apple-darwin target on Apple Silicon
-    # Install with: rustup target add x86_64-apple-darwin
-    # Or install umepr separately: pip install umepr @ git+https://github.com/UMEP-dev/umep-rust.git
 ]
 
 [tool.pytest.ini_options]

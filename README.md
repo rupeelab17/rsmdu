@@ -127,13 +127,137 @@ pymdurs/
 
 ## 🚀 Installation
 
-### Rust Library
+### Installing Rust
+
+Before building the project, you need to install Rust and Cargo. Follow the instructions for your operating system:
+
+#### Windows
+
+1. **Download and run rustup-init.exe:**
+
+   - Visit https://rustup.rs/
+   - Download `rustup-init.exe`
+   - Run the installer and follow the prompts
+
+2. **Or use PowerShell:**
+
+   ```powershell
+   # Download and run rustup-init
+   Invoke-WebRequest -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+   .\rustup-init.exe
+   ```
+
+3. **Verify installation:**
+
+   ```powershell
+   rustc --version
+   cargo --version
+   ```
+
+4. **Install Visual Studio Build Tools (required for Windows):**
+   - Download from: https://visualstudio.microsoft.com/downloads/
+   - Install "Desktop development with C++" workload
+   - Or install the lighter "C++ build tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+**Note**: On Windows, you may need to restart your terminal after installation for PATH changes to take effect.
+
+#### macOS
+
+1. **Install using Homebrew (recommended):**
+
+   ```bash
+   brew install rust
+   ```
+
+2. **Or use rustup (official installer):**
+
+   ```bash
+   # Download and run rustup
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+3. **Follow the prompts** and restart your terminal
+
+4. **Verify installation:**
+   ```bash
+   rustc --version
+   cargo --version
+   ```
+
+**Note**: On macOS, you may need to install Xcode Command Line Tools:
+
+```bash
+xcode-select --install
+```
+
+#### Linux
+
+1. **Install using your package manager:**
+
+   **Ubuntu/Debian:**
+
+   ```bash
+   sudo apt update
+   sudo apt install rustc cargo
+   ```
+
+   **Fedora:**
+
+   ```bash
+   sudo dnf install rust cargo
+   ```
+
+   **Arch Linux:**
+
+   ```bash
+   sudo pacman -S rust
+   ```
+
+2. **Or use rustup (recommended for latest version):**
+
+   ```bash
+   # Download and run rustup
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   source $HOME/.cargo/env
+   ```
+
+3. **Install build dependencies (required):**
+
+   **Ubuntu/Debian:**
+
+   ```bash
+   sudo apt install build-essential pkg-config libssl-dev
+   ```
+
+   **Fedora:**
+
+   ```bash
+   sudo dnf install gcc pkg-config openssl-devel
+   ```
+
+   **Arch Linux:**
+
+   ```bash
+   sudo pacman -S base-devel
+   ```
+
+4. **Verify installation:**
+   ```bash
+   rustc --version
+   cargo --version
+   ```
+
+### Building the Rust Library
+
+Once Rust is installed, clone and build the project:
 
 ```bash
 git clone https://github.com/rupeelab17/pymdurs.git
 cd pymdurs
 cargo build --release
 ```
+
+**Note**: The first build may take several minutes as it compiles all dependencies. Subsequent builds will be faster.
 
 ### Python Package
 
@@ -215,7 +339,7 @@ let mut buildings = BuildingCollection::new(
 )?;
 
 // Set bounding box (Python: buildings.Bbox = [...])
-buildings.set_Bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
+buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
 
 // Run processing (Python: buildings = buildings.run())
 let buildings = buildings.run()?;
@@ -233,7 +357,7 @@ use rsmdu::geometric::dem::Dem;
 let mut dem = Dem::new(Some("./output".to_string()))?;
 
 // Set bounding box
-dem.set_Bbox(-1.152704, 46.181627, -1.139893, 46.18699);
+dem.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699);
 
 // Run DEM processing
 let dem_result = dem.run(None)?;
@@ -373,6 +497,8 @@ Located in `rsmdu/examples/`:
 - **`cadastre_from_ign.rs`**: Downloading and processing cadastral data from IGN API
 - **`iris_from_ign.rs`**: Downloading and processing IRIS statistical units from IGN API
 - **`lcz_from_url.rs`**: Loading and processing LCZ data from URL
+- **`cosia_from_ign.rs`**: Downloading COSIA landcover raster from IGN API
+- **`rnb_from_api.rs`**: Downloading RNB (Référentiel National des Bâtiments) data from IGN API
 - **`road_from_ign.rs`**: Downloading road segments from IGN API
 - **`water_from_ign.rs`**: Downloading water bodies from IGN API
 - **`vegetation_from_ign.rs`**: Downloading vegetation zones from IGN API
@@ -388,6 +514,8 @@ cargo run --example dem_from_ign
 cargo run --example cadastre_from_ign
 cargo run --example iris_from_ign
 cargo run --example lcz_from_url
+cargo run --example cosia_from_ign
+cargo run --example rnb_from_api
 ```
 
 ### Python Examples
@@ -400,10 +528,13 @@ Located in `pymdurs/examples/`:
 - **`cadastre_from_ign.py`**: Download cadastral data from IGN API
 - **`iris_from_ign.py`**: Download IRIS statistical units from IGN API
 - **`lcz_from_url.py`**: Load LCZ data from URL
+- **`cosia_from_ign.py`**: Complete COSIA workflow - download, vectorize and convert to UMEP format
+- **`rnb_from_api.py`**: Download RNB (Référentiel National des Bâtiments) data from IGN API
 - **`lidar_from_wfs.py`**: Download and process LiDAR data from IGN WFS service
 - **`road_from_ign.py`**: Download road segments from IGN API
 - **`water_from_ign.py`**: Download water bodies from IGN API
 - **`vegetation_from_ign.py`**: Download vegetation zones from IGN API
+- **`umep_workflow.py`**: Complete UMEP workflow for urban climate modeling (SOLWEIG, SVF, etc.)
 
 **Run Python examples:**
 
@@ -412,6 +543,8 @@ cd pymdurs
 python examples/building_basic.py
 python examples/building_from_ign.py
 python examples/dem_from_ign.py
+python examples/cosia_from_ign.py
+python examples/umep_workflow.py
 ```
 
 ### WebAssembly Examples
@@ -651,6 +784,8 @@ Contributions are welcome! This project follows standard Rust and Python best pr
    ```
 
 2. **Set up Rust development:**
+
+   **Note**: If you haven't installed Rust yet, see the [Installing Rust](#installing-rust) section above.
 
    ```bash
    cd rsmdu
