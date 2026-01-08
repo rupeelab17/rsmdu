@@ -277,15 +277,13 @@ maturin develop --target x86_64-apple-darwin
 maturin develop
 ```
 
-**Note**: On Apple Silicon, if you get an error about missing `x86_64-apple-darwin` target, use `--target aarch64-apple-darwin` explicitly.
+**Note**:On Apple Silicon, if you get an error about missing `x86_64-apple-darwin` target, use `--target aarch64-apple-darwin` explicitly.
 
 **Important**: Maturin requires an active Python environment:
 
 - **Conda**: Activate your conda environment first (`conda activate base` or your environment)
 - **venv**: Create and activate a virtual environment (`python3 -m venv .venv && source .venv/bin/activate`)
 - Maturin will detect the environment via `CONDA_PREFIX` or `VIRTUAL_ENV` environment variables
-
-````
 
 **Requirements:**
 
@@ -310,7 +308,7 @@ cd rsmdu-wasm
 
 # Build WASM package
 ./build.sh
-````
+```
 
 See `rsmdu-wasm/README.md` for detailed WebAssembly setup instructions.
 
