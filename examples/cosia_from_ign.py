@@ -280,7 +280,7 @@ def main(output_path: Path):
     print("Step 1: Downloading COSIA from IGN API...")
     print("=" * 60)
 
-    cosia = pymdurs.geometric.Cosia(output_path=output_path)
+    cosia = pymdurs.geometric.Cosia(output_path=str(output_path))
     cosia.set_bbox(*bbox_wgs84)
     cosia.set_crs(working_crs)
 
