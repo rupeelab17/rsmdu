@@ -25,11 +25,11 @@ def main():
     print(f"📦 Number of buildings: {len(buildings)}")
 
     # Create and set a bounding box
-    bbox = pymdurs.bbox(
+    bbox = pymdurs.PyBoundingBox(
         min_x=-1.152704, min_y=46.181627, max_x=-1.139893, max_y=46.18699
     )
 
-    # Set Bbox using set_Bbox method (updates both BuildingCollection and GeoCore)
+    # Set Bbox using set_bbox method (updates both BuildingCollection and GeoCore)
     buildings.set_bbox(bbox.min_x, bbox.min_y, bbox.max_x, bbox.max_y)
     print(
         f"📦 Bounding box: ({bbox.min_x}, {bbox.min_y}) to ({bbox.max_x}, {bbox.max_y})"
@@ -37,7 +37,7 @@ def main():
 
     # Access GeoCore properties (geo_core is a getter property, not a method)
     geo = buildings.geo_core
-    print(f"\n📍 GeoCore properties:")
+    print("\n📍 GeoCore properties:")
     print(f"   EPSG: {geo.epsg}")
     print(f"   Output path: {geo.output_path}")
     print(f"   Bbox: {geo.bbox}")
