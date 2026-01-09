@@ -8,7 +8,7 @@ This example demonstrates how to:
 4. Convert to pandas DataFrame
 """
 
-import sys
+import geopandas as gpd
 
 import pymdurs
 
@@ -26,7 +26,7 @@ def main():
     buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
 
     geo = buildings.geo_core
-    print(f"📦 Bounding box set")
+    print("📦 Bounding box set")
     print(f"📁 Output path: {geo.output_path}")
 
     # Run processing: downloads from IGN API and processes heights
@@ -39,8 +39,16 @@ def main():
     print("📊 Converting to pandas DataFrame...")
     df = buildings.to_pandas()
 
+    # Convert GeoJSON to GeoDataFrame
+    print("🗺️ Converting GeoJSON to GeoDataFrame...")
     geojson = buildings.get_geojson()
-    print(geojson)
+    gdf = gpd.GeoDataFrame.from_features(geojson.get("features", []), crs="EPSG:4326")
+
+    print(f"✅ GeoDataFrame created with {len(gdf)} features")
+    print(f"📊 GeoDataFrame columns: {list(gdf.columns)}")
+    print(f"📊 GeoDataFrame CRS: {gdf.crs}")
+
+    gdf.to_file("buildings.shp", driver="ESRI Shapefile")
 
     if geojson and "features" in geojson:
         num_features = len(geojson["features"])
@@ -55,8 +63,13 @@ def main():
     print("\n📊 Statistics:")
     print(df.describe())
 
-    return buildings, df
+    print("\n🗺️ GeoDataFrame info:")
+    print(gdf.info())
+    print("\n🗺️ GeoDataFrame first few rows:")
+    print(gdf.head())
+
+    return buildings, df, gdf
 
 
 if __name__ == "__main__":
-    buildings, df = main()
+    buildings, df, gdf = main()
