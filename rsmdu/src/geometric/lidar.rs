@@ -4,6 +4,17 @@ use std::path::{Path, PathBuf};
 
 use crate::geo_core::{BoundingBox, GeoCore};
 
+#[cfg(feature = "indicatif")]
+use indicatif::{ProgressBar, ProgressStyle};
+
+#[cfg(feature = "indicatif")]
+fn progress_style() -> ProgressStyle {
+    ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {percent} {msg}")
+        .unwrap()
+        .progress_chars("##-")
+}
+
 /// Lidar structure
 /// Following Python implementation from pymdu.image.Lidar
 /// Provides methods to collect and process LiDAR point cloud data
@@ -22,11 +33,11 @@ pub struct Lidar {
 
 /// Point structure for LiDAR data
 #[derive(Debug, Clone)]
-struct LidarPoint {
-    x: f64,
-    y: f64,
-    z: f64,
-    classification: u8,
+pub(crate) struct LidarPoint {
+    pub(crate) x: f64,
+    pub(crate) y: f64,
+    pub(crate) z: f64,
+    pub(crate) classification: u8,
 }
 
 /// Processed raster data
@@ -155,7 +166,7 @@ impl Lidar {
             ("request", "GetFeature"),
             ("typeName", "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle"),
             ("outputFormat", "application/json"),
-            ("bbox", &bbox_string), // ("CRS", "EPSG:4326"),
+            ("bbox", &bbox_string),
         ];
 
         println!("Requesting LiDAR data from WFS...");
@@ -204,139 +215,264 @@ impl Lidar {
     /// Download and load LiDAR points from LAZ URLs (internal method)
     /// Following Python: def load_lidar_points(self, laz_urls)
     /// Returns vector of LidarPoint with (x, y, z, classification)
+    /// Uses las crate with laz-parallel feature for LAZ decompression
+
     fn load_lidar_points_internal(&self, laz_urls: &[String]) -> Result<Vec<LidarPoint>> {
-        let mut all_points = Vec::new();
+        {
+            let mut all_points = Vec::new();
 
-        // Create HTTP client with longer timeout for large files
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(600)) // 10 minutes timeout
-            .build()
-            .context("Failed to create HTTP client")?;
+            // Create HTTP client with longer timeout for large files
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(600)) // 10 minutes timeout
+                .build()
+                .context("Failed to create HTTP client")?;
 
-        for url in laz_urls {
-            println!("Downloading LAZ file from: {}", url);
+            // Create overall progress bar for multiple files
+            #[cfg(feature = "indicatif")]
+            let overall_pb = if laz_urls.len() > 1 {
+                let pb = ProgressBar::new(laz_urls.len() as u64);
+                pb.set_style(progress_style());
+                pb.set_message("[0/3] Initializing");
+                pb.tick();
+                Some(pb)
+            } else {
+                None
+            };
 
-            // Download the file with retry logic
-            let mut retries = 3;
-            let bytes: Vec<u8> = loop {
-                let response: reqwest::blocking::Response = match client.get(url).send() {
+            for (idx, url) in laz_urls.iter().enumerate() {
+                #[cfg(feature = "indicatif")]
+                if let Some(ref pb) = overall_pb {
+                    pb.set_message(format!("[3/3] File {}/{}", idx + 1, laz_urls.len()));
+                    pb.tick();
+                }
+
+                println!("Downloading LAZ file from: {}", url);
+
+                // Download the file with retry logic
+                let mut retries = 3;
+                let bytes: Vec<u8> = loop {
+                    let mut response: reqwest::blocking::Response = match client.get(url).send() {
+                        Ok(r) => r,
+                        Err(e) => {
+                            retries -= 1;
+                            if retries > 0 {
+                                eprintln!("Download error (retrying...): {}", e);
+                                std::thread::sleep(std::time::Duration::from_secs(2));
+                                continue;
+                            }
+                            return Err(anyhow::anyhow!(
+                                "Failed to download LAZ file from {} after retries: {}",
+                                url,
+                                e
+                            ));
+                        }
+                    };
+
+                    if !response.status().is_success() {
+                        let status = response.status();
+                        let error_text = response.text().unwrap_or_default();
+                        return Err(anyhow::anyhow!(
+                            "HTTP error {} when downloading {}: {}",
+                            status,
+                            url,
+                            error_text
+                        ));
+                    }
+
+                    // Get content length for progress tracking
+                    #[cfg(feature = "indicatif")]
+                    let content_length = response.content_length();
+                    #[cfg(feature = "indicatif")]
+                    let download_pb = if let Some(len) = content_length {
+                        let pb = ProgressBar::new(len);
+                        pb.set_style(progress_style());
+                        pb.set_message("[1/3] Downloading");
+                        pb.tick();
+                        Some(pb)
+                    } else {
+                        None
+                    };
+
+                    // Read response in chunks to track progress
+                    use std::io::Read;
+                    let mut compressed_data = Vec::new();
+                    let mut buffer = [0u8; 8192]; // 8KB chunks
+
+                    loop {
+                        match response.read(&mut buffer) {
+                            Ok(0) => break, // EOF
+                            Ok(n) => {
+                                compressed_data.extend_from_slice(&buffer[..n]);
+                                #[cfg(feature = "indicatif")]
+                                if let Some(ref pb) = download_pb {
+                                    pb.inc(n as u64);
+                                    // Tick periodically for better visual feedback
+                                    if compressed_data.len() % (8192 * 100) == 0 {
+                                        pb.tick();
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                #[cfg(feature = "indicatif")]
+                                if let Some(ref pb) = download_pb {
+                                    pb.finish_and_clear();
+                                }
+                                retries -= 1;
+                                if retries > 0 {
+                                    eprintln!("Failed to read bytes (retrying...): {}", e);
+                                    std::thread::sleep(std::time::Duration::from_secs(2));
+                                    break; // Break inner loop to retry
+                                }
+                                return Err(anyhow::anyhow!(
+                                    "Failed to read bytes from {} after retries: {}",
+                                    url,
+                                    e
+                                ));
+                            }
+                        }
+                    }
+
+                    #[cfg(feature = "indicatif")]
+                    if let Some(ref pb) = download_pb {
+                        pb.finish_with_message("[1/3] Downloaded");
+                    }
+
+                    // If we got here without error, we have the data
+                    if !compressed_data.is_empty() {
+                        break compressed_data;
+                    }
+
+                    // If we get here and retries > 0, we'll retry
+                    retries -= 1;
+                    if retries > 0 {
+                        eprintln!("Empty response, retrying...");
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        continue;
+                    } else {
+                        return Err(anyhow::anyhow!(
+                            "Failed to download LAZ file from {}: empty response after retries",
+                            url
+                        ));
+                    }
+                };
+
+                println!("Downloaded {} bytes from {}", bytes.len(), url);
+
+                // Read LAZ file with las crate
+                // Python: las = laspy.read(file_obj)
+                //         pts = np.vstack((las.x, las.y, las.z, las.classification)).T
+                use std::io::Cursor;
+                // Convert bytes to owned Vec to avoid borrowing issues
+                let file_size = bytes.len();
+                let bytes_vec = bytes.to_vec();
+                let cursor = Cursor::new(bytes_vec);
+
+                let mut reader = match las::Reader::new(cursor) {
                     Ok(r) => r,
                     Err(e) => {
-                        retries -= 1;
-                        if retries > 0 {
-                            eprintln!("Download error (retrying...): {}", e);
-                            std::thread::sleep(std::time::Duration::from_secs(2));
-                            continue;
+                        eprintln!("Failed to create LAS reader for {}: {}", url, e);
+                        eprintln!("File size: {} bytes", file_size);
+                        #[cfg(feature = "indicatif")]
+                        if let Some(ref pb) = overall_pb {
+                            pb.inc(1);
                         }
-                        return Err(anyhow::anyhow!(
-                            "Failed to download LAZ file from {} after retries: {}",
-                            url,
-                            e
-                        ));
+                        continue; // Skip this file and try the next one
                     }
                 };
 
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let error_text = response.text().unwrap_or_default();
-                    return Err(anyhow::anyhow!(
-                        "HTTP error {} when downloading {}: {}",
-                        status,
-                        url,
-                        error_text
-                    ));
-                }
+                // Try to get point count from header for progress tracking
+                #[cfg(feature = "indicatif")]
+                let header = reader.header();
+                #[cfg(feature = "indicatif")]
+                let point_count = header.number_of_points();
+                #[cfg(feature = "indicatif")]
+                let parse_pb = if point_count > 0 {
+                    let pb = ProgressBar::new(point_count);
+                    pb.set_style(progress_style());
+                    pb.set_message("[2/3] Parsing points");
+                    pb.tick();
+                    Some(pb)
+                } else {
+                    None
+                };
 
-                // Try to read bytes with better error handling
-                match response.bytes() {
-                    Ok(b) => break b.to_vec(),
-                    Err(e) => {
-                        retries -= 1;
-                        if retries > 0 {
-                            eprintln!("Failed to read bytes (retrying...): {}", e);
-                            std::thread::sleep(std::time::Duration::from_secs(2));
-                            continue;
+                // Read all points
+                let mut file_points = 0;
+                for point_result in reader.points() {
+                    let point = match point_result {
+                        Ok(p) => p,
+                        Err(e) => {
+                            eprintln!("Error reading point from {}: {}", url, e);
+                            continue; // Skip this point and continue
                         }
-                        return Err(anyhow::anyhow!(
-                            "Failed to read bytes from {} after retries: {}",
-                            url,
-                            e
-                        ));
+                    };
+
+                    // Convert classification enum to u8
+                    // Classification is an enum, we extract the numeric value
+                    // The las crate uses a specific enum structure, we'll use a match with common values
+                    let classification_value = match point.classification {
+                        las::point::Classification::CreatedNeverClassified => 0,
+                        las::point::Classification::Unclassified => 1,
+                        las::point::Classification::Ground => 2,
+                        las::point::Classification::LowVegetation => 3,
+                        las::point::Classification::MediumVegetation => 4,
+                        las::point::Classification::HighVegetation => 5,
+                        las::point::Classification::Building => 6,
+                        las::point::Classification::LowPoint => 7,
+                        las::point::Classification::ModelKeyPoint => 8,
+                        las::point::Classification::Water => 9,
+                        _ => 1, // Default to Unclassified for unknown classifications
+                    };
+
+                    all_points.push(LidarPoint {
+                        x: point.x,
+                        y: point.y,
+                        z: point.z,
+                        classification: classification_value,
+                    });
+                    file_points += 1;
+
+                    #[cfg(feature = "indicatif")]
+                    if let Some(ref pb) = parse_pb {
+                        pb.inc(1);
+                        // Tick every 1000 points for better visual feedback
+                        if file_points % 1000 == 0 {
+                            pb.tick();
+                        }
                     }
                 }
-            };
 
-            println!("Downloaded {} bytes from {}", bytes.len(), url);
-
-            // Read LAZ file with las crate
-            // Python: las = laspy.read(file_obj)
-            //         pts = np.vstack((las.x, las.y, las.z, las.classification)).T
-            use std::io::Cursor;
-            // Convert bytes to owned Vec to avoid borrowing issues
-            let file_size = bytes.len();
-            let bytes_vec = bytes.to_vec();
-            let cursor = Cursor::new(bytes_vec);
-
-            let mut reader = match las::Reader::new(cursor) {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("Failed to create LAS reader for {}: {}", url, e);
-                    eprintln!("File size: {} bytes", file_size);
-                    continue; // Skip this file and try the next one
+                #[cfg(feature = "indicatif")]
+                if let Some(ref pb) = parse_pb {
+                    pb.finish_with_message("[2/3] Parsed");
                 }
-            };
 
-            // Read all points
-            let mut file_points = 0;
-            for point_result in reader.points() {
-                let point = match point_result {
-                    Ok(p) => p,
-                    Err(e) => {
-                        eprintln!("Error reading point from {}: {}", url, e);
-                        continue; // Skip this point and continue
-                    }
-                };
+                println!(
+                    "Loaded {} points from {} (total so far: {})",
+                    file_points,
+                    url,
+                    all_points.len()
+                );
 
-                // Convert classification enum to u8
-                // Classification is an enum, we extract the numeric value
-                // The las crate uses a specific enum structure, we'll use a match with common values
-                let classification_value = match point.classification {
-                    las::point::Classification::CreatedNeverClassified => 0,
-                    las::point::Classification::Unclassified => 1,
-                    las::point::Classification::Ground => 2,
-                    las::point::Classification::LowVegetation => 3,
-                    las::point::Classification::MediumVegetation => 4,
-                    las::point::Classification::HighVegetation => 5,
-                    las::point::Classification::Building => 6,
-                    las::point::Classification::LowPoint => 7,
-                    las::point::Classification::ModelKeyPoint => 8,
-                    las::point::Classification::Water => 9,
-                    _ => 1, // Default to Unclassified for unknown classifications
-                };
-
-                all_points.push(LidarPoint {
-                    x: point.x,
-                    y: point.y,
-                    z: point.z,
-                    classification: classification_value,
-                });
-                file_points += 1;
+                #[cfg(feature = "indicatif")]
+                if let Some(ref pb) = overall_pb {
+                    pb.inc(1);
+                    pb.tick();
+                }
             }
 
-            println!(
-                "Loaded {} points from {} (total so far: {})",
-                file_points,
-                url,
-                all_points.len()
-            );
-        }
+            #[cfg(feature = "indicatif")]
+            if let Some(ref pb) = overall_pb {
+                pb.finish_with_message("[3/3] All files processed");
+            }
 
-        if all_points.is_empty() {
-            anyhow::bail!("No LiDAR points were loaded from any file");
-        }
+            if all_points.is_empty() {
+                anyhow::bail!("No LiDAR points were loaded from any file");
+            }
 
-        println!("Total points loaded: {}", all_points.len());
-        Ok(all_points)
+            println!("Total points loaded: {}", all_points.len());
+            Ok(all_points)
+        }
     }
 
     /// Process LiDAR points to create DSM, DTM, and CHM rasters

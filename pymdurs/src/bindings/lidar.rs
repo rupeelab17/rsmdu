@@ -33,7 +33,9 @@ impl PyLidar {
     fn set_bbox(&mut self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> PyResult<()> {
         self.inner
             .set_bbox(min_x, min_y, max_x, max_y)
-            .map_err(|e| PyValueError::new_err(format!("Failed to set bbox and get LiDAR points: {}", e)))
+            .map_err(|e| {
+                PyValueError::new_err(format!("Failed to set bbox and get LiDAR points: {}", e))
+            })
     }
 
     /// Set classification filter

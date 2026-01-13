@@ -5,7 +5,7 @@ edition = "2021"
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Core library"
 
 [features]
-default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml"]
+default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif"]
 wasm = []
 umep = []
 
@@ -41,9 +41,11 @@ encoding_rs = { version = "0.8", optional = true }
 urlencoding = "2.1"
 zip = { version = "0.6", optional = true }
 tempfile = { version = "3.8", optional = true }
+indicatif = { version = "0.17", optional = true }
 
 # LiDAR processing
 las = { version = "0.9", features = ["laz-parallel"], optional = true }
+laz = { version = "0.10", optional = true }
 
 # UMEP integration (optional - only when umep feature is enabled)
 # Note: umep_rust may not be available as a crate, comment out if not needed
