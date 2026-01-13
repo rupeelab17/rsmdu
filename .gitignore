@@ -126,3 +126,4 @@ examples/temp/
 examples/output/
 examples/temp/
 *.tif
+**__pycache__**
