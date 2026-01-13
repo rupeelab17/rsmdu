@@ -209,6 +209,8 @@ impl IgnCollect {
             .bbox
             .context("Bounding box must be set before executing IGN request")?;
 
+        println!("Bbox: {:?}", bbox);
+
         // Get URL from CSV following Python implementation
         // Python: row = self.df_csv_file.loc[(self.df_csv_file.index == self.ign_keys[key])]
         //         url = row["URL d'acces Geoplateforme"].values[0].split("&REQUEST=GetCapabilities")[0]

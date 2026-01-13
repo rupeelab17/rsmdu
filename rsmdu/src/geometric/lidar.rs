@@ -114,6 +114,8 @@ impl Lidar {
             .get_bbox()
             .context("Bounding box must be set before getting LiDAR points")?;
 
+        println!("Bbox: {:?}", bbox);
+
         // Transform bbox from EPSG:4326 to EPSG:2154
         // Python: transformer = Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True)
         let transformer = Proj::new_known_crs("EPSG:4326", "EPSG:2154", None)
@@ -127,22 +129,39 @@ impl Lidar {
             .context("Failed to transform max coordinates")?;
 
         // Create bbox string for WFS request
-        let bbox_string = format!("{},{},{},{}", min_x, min_y, max_x, max_y);
+        let bbox_string = format!(
+            "{},{},{},{}",
+            bbox.min_y, bbox.min_x, bbox.max_y, bbox.max_x
+        );
+        println!("Bbox string: {}", bbox_string);
 
         // Make WFS request
         // Python: url = "https://data.geopf.fr/private/wfs"
-        let url = "https://data.geopf.fr/private/wfs";
+        // let url = "https://data.geopf.fr/private/wfs";
+        // let params = [
+        //     ("service", "WFS"),
+        //     ("version", "2.0.0"),
+        //     ("request", "GetFeature"),
+        //     ("apikey", "interface_catalogue"),
+        //     ("typeName", "IGNF_LIDAR-HD_TA:nuage-dalle"),
+        //     ("outputFormat", "application/json"),
+        //     ("bbox", &bbox_string),
+        // ];
+
+        let url = "https://data.geopf.fr/wfs/ows";
         let params = [
             ("service", "WFS"),
             ("version", "2.0.0"),
             ("request", "GetFeature"),
-            ("apikey", "interface_catalogue"),
-            ("typeName", "IGNF_LIDAR-HD_TA:nuage-dalle"),
+            ("typeName", "IGNF_NUAGES-DE-POINTS-LIDAR-HD:dalle"),
             ("outputFormat", "application/json"),
-            ("bbox", &bbox_string),
+            ("bbox", &bbox_string), // ("CRS", "EPSG:4326"),
         ];
 
         println!("Requesting LiDAR data from WFS...");
+        println!("URL: {}", url);
+        println!("Params: {:?}", params);
+
         let response = reqwest::blocking::Client::new()
             .get(url)
             .query(&params)

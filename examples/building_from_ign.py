@@ -22,7 +22,6 @@ def main():
     )
 
     # Set bounding box (La Rochelle area, France)
-    # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
     buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
 
     geo = buildings.geo_core
@@ -47,6 +46,7 @@ def main():
     print(f"✅ GeoDataFrame created with {len(gdf)} features")
     print(f"📊 GeoDataFrame columns: {list(gdf.columns)}")
     print(f"📊 GeoDataFrame CRS: {gdf.crs}")
+    gdf = gdf.to_crs(epsg=3857)
 
     gdf.to_file("buildings.shp", driver="ESRI Shapefile")
 
