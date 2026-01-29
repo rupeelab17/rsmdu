@@ -27,7 +27,7 @@ dependencies = [
     "geopandas>=1.0.1",
     "rasterio>=1.4.3",
     "umep>=0.0.1a18",
-    "umepr @ git+https://github.com/UMEP-dev/umep-rust.git",
+    "umepr @ git+https://github.com/UMEP-dev/solweig.git",
 ]
 
 [project.optional-dependencies]
@@ -57,3 +57,8 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+[dependency-groups]
+dev = [
+    "marimo[recommended]>=0.19.6",
+]
