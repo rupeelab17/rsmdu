@@ -118,16 +118,19 @@ jobs:
         run: |
           brew install gdal
 
-      - name: Install GDAL (Windows)
+      - name: Install GDAL and GEOS (Windows)
         if: matrix.os == 'windows-latest'
         id: setup-osgeo4w
         uses: echoix/setup-OSGeo4W@v0.2.0
         with:
-          packages: gdal-devel
-      - name: Set GDAL_HOME and install LLVM (Windows)
+          packages: gdal-devel geos-devel
+      - name: Set GDAL_HOME, GEOS env and install LLVM (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          echo "GDAL_HOME=${{ steps.setup-osgeo4w.outputs.root }}" >> $GITHUB_ENV
+          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
+          echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
+          echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
+          echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           choco install llvm -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
