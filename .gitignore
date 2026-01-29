@@ -151,6 +151,8 @@ notebooks/output/*.tif
 
 # Ignorer tous les .tif ailleurs
 *.tif
-
+*.npz
+*.zip
+*.xml
 # Python
 **__pycache__**
