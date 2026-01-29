@@ -125,13 +125,13 @@ jobs:
         run: |
           brew install gdal
 
-      - name: Install GDAL and GEOS (Windows)
+      - name: Install GDAL, GEOS, PROJ and SQLite3 (Windows)
         if: matrix.os == 'windows-latest'
         id: setup-osgeo4w
         uses: echoix/setup-OSGeo4W@v0.2.0
         with:
-          packages: gdal-devel geos-devel
-      - name: Set GDAL_HOME, GEOS env and install LLVM (Windows)
+          packages: gdal-devel geos-devel proj-devel sqlite3
+      - name: Set env and install LLVM, pkg-config (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
@@ -139,7 +139,12 @@ jobs:
           echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
-          choco install llvm -y
+          echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
+          # Prepend OSGeo4W and Chocolatey bin to PATH so sqlite3.exe is found when proj-sys builds PROJ from source
+          echo "PATH=$O4W_ROOT/bin:/c/ProgramData/chocolatey/bin:$PATH" >> $GITHUB_ENV
+          # Help CMake find SQLite3 when proj-sys builds PROJ from source
+          echo "SQLite3_ROOT=$O4W_ROOT" >> $GITHUB_ENV
+          choco install llvm pkgconfiglite sqlite -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
