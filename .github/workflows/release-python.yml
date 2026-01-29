@@ -14,11 +14,11 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.sha || github.sha }}
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.9"
+  PYTHON_VERSION: "3.12"
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
@@ -30,6 +30,7 @@ defaults:
 jobs:
   build-sdist:
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # Ajoutez un timeout
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,6 +41,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip" # Ajoutez le cache
 
       - name: Install GDAL (Linux)
         run: |
@@ -73,6 +75,7 @@ jobs:
   build-wheels:
     needs: [build-sdist]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60 # Ajoutez un timeout plus long pour les wheels
     strategy:
       fail-fast: false
       matrix:
