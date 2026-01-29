@@ -162,6 +162,9 @@ jobs:
       - name: Test wheel
         run: |
           pip install --force-reinstall --verbose dist/*.whl
+          # Run from /tmp to avoid repo source tree shadowing installed package
+          # (see https://github.com/PyO3/maturin/issues/490)
+          cd /tmp
           python -c 'import pymdurs; print("✅ pymdurs imported successfully")'
           python -c 'import pymdurs; print("Available classes:", [x for x in dir(pymdurs.geometric) if not x.startswith("_")])'
           python -c 'import pymdurs; bbox = pymdurs.PyBoundingBox(-1.0, 46.0, 1.0, 47.0); print("✅ PyBoundingBox works:", bbox.min_x)'
@@ -207,7 +210,7 @@ jobs:
       - name: Get version from pyproject.toml
         id: version
         run: |
-          VERSION=$(grep -m 1 -oP 'version = "\K[^"]+' pymdurs/pyproject.toml)
+          VERSION=$(grep -m 1 -oP 'version = "\K[^"]+' pyproject.toml)
           if [[ "$VERSION" == *"-"* ]] || [[ "$VERSION" == *"dev"* ]] || [[ "$VERSION" == *"alpha"* ]] || [[ "$VERSION" == *"beta"* ]] || [[ "$VERSION" == *"rc"* ]]; then
             IS_PRERELEASE=true
           else
