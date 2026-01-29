@@ -107,6 +107,13 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Remove WindowsApps from PATH (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $path = ($env:Path -split ';' | Where-Object { $_ -notmatch 'WindowsApps' }) -join ';'
+          echo "PATH=$path" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Install GDAL (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
