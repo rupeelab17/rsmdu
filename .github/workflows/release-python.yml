@@ -131,6 +131,7 @@ jobs:
           echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
           echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
+          echo "GEOS_VERSION=3.12" >> $GITHUB_ENV
           choco install llvm -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
