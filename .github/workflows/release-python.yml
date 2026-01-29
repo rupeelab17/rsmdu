@@ -120,8 +120,15 @@ jobs:
 
       - name: Install GDAL (Windows)
         if: matrix.os == 'windows-latest'
+        id: setup-osgeo4w
+        uses: echoix/setup-OSGeo4W@v0.2.0
+        with:
+          packages: gdal-devel
+      - name: Set GDAL_HOME and install LLVM (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
-          choco install gdal -y
+          echo "GDAL_HOME=${{ steps.setup-osgeo4w.outputs.root }}" >> $GITHUB_ENV
+          choco install llvm -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
