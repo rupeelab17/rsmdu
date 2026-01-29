@@ -24,7 +24,8 @@ polars = { version = "0.51", features = ["lazy", "temporal", "strings"], optiona
 # wkb = "0.3"  # Not needed - using geos for WKB conversion instead
 
 # HTTP and serialization
-reqwest = { version = "0.12", features = ["json", "blocking"], optional = true }
+# Use rustls instead of default-tls (OpenSSL) for manylinux CI compatibility
+reqwest = { version = "0.12", features = ["json", "blocking", "rustls-tls"], default-features = false, optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
