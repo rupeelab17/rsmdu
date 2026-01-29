@@ -126,15 +126,19 @@ examples/temp/
 examples/output/
 examples/temp/
 examples/working/
-notebooks/output/
 notebooks/temp/
 notebooks/working/
+notebooks/
+!notebooks/output/
+!notebooks/output/umep_workflow/
 !notebooks/output/umep_workflow/landcover_clip.tif
 !notebooks/output/umep_workflow/landcover.tif
 !notebooks/output/umep_workflow/DSM_clip.tif
 !notebooks/output/umep_workflow/CDSM_clip.tif
 !notebooks/output/umep_workflow/DEM_clip.tif
 !notebooks/output/Tmrt_average.tif
+
+notebooks/__marimo__
 
 *.tif
 **__pycache__**
