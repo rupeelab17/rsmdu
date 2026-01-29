@@ -111,7 +111,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgdal-dev gdal-bin
+          sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
 
       - name: Install GDAL (macOS)
         if: startsWith(matrix.os, 'macos')
@@ -121,7 +121,7 @@ jobs:
       - name: Install GDAL (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          choco install gdal --version=3.5.0 -y
+          choco install gdal -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
@@ -156,7 +156,7 @@ jobs:
             --release
             --manifest-path pymdurs/Cargo.toml
             --out dist
-          manylinux: ${{ matrix.architecture == 'aarch64' && '2_24' || 'auto' }}
+          manylinux: ${{ matrix.os == 'ubuntu-latest' && 'off' || (matrix.architecture == 'aarch64' && '2_24' || 'auto') }}
           maturin-version: 1.11.4
 
       - name: Test wheel
