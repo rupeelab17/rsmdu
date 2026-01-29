@@ -87,6 +87,9 @@ jobs:
             architecture: x86-64
           - os: macos-15-intel
             architecture: aarch64
+          # Linux aarch64: manylinux cross-compilation container lacks GDAL headers
+          - os: ubuntu-latest
+            architecture: aarch64
 
     steps:
       - uses: actions/checkout@v4
