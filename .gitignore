@@ -128,10 +128,10 @@ examples/working/
 # Notebooks - ignorer certains sous-répertoires
 notebooks/temp/
 notebooks/working/
-notebooks/__marimo__/
 
 # Ignorer tous les fichiers directement dans notebooks/ et ses sous-dossiers
 notebooks/*
+!notebooks/umep_workflow.py
 !notebooks/output/
 
 # Dans output/, tout ignorer sauf umep_workflow/

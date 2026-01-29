@@ -32,7 +32,7 @@ jobs:
         run: pip install marimo
 
       - name: Export notebook
-        run: marimo export html-wasm notebooks/umep_workflow.py -o output --mode run
+        run: marimo export html-wasm notebooks/umep_workflow.py -o output --mode edit
 
       - name: Add .nojekyll
         run: touch output/.nojekyll
