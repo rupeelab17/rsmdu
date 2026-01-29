@@ -123,22 +123,34 @@ lcov.info
 
 examples/output/
 examples/temp/
-examples/output/
-examples/temp/
 examples/working/
+
+# Notebooks - ignorer certains sous-répertoires
 notebooks/temp/
 notebooks/working/
-notebooks/
+notebooks/__marimo__/
+
+# Ignorer tous les fichiers directement dans notebooks/ et ses sous-dossiers
+notebooks/*
 !notebooks/output/
+
+# Dans output/, tout ignorer sauf umep_workflow/
+notebooks/output/*
 !notebooks/output/umep_workflow/
+
+# Dans umep_workflow/, ignorer tous les .tif sauf ceux spécifiquement listés
+notebooks/output/umep_workflow/*.tif
 !notebooks/output/umep_workflow/landcover_clip.tif
-!notebooks/output/umep_workflow/landcover.tif
 !notebooks/output/umep_workflow/DSM_clip.tif
 !notebooks/output/umep_workflow/CDSM_clip.tif
 !notebooks/output/umep_workflow/DEM_clip.tif
+
+# Ignorer les autres .tif mais garder Tmrt_average.tif
+notebooks/output/*.tif
 !notebooks/output/Tmrt_average.tif
 
-notebooks/__marimo__
-
+# Ignorer tous les .tif ailleurs
 *.tif
+
+# Python
 **__pycache__**
