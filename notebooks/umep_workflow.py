@@ -6,8 +6,14 @@ app = marimo.App()
 
 @app.cell
 def _():
-    """
-    Example: Complete UMEP workflow using pymdurs and umepr
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## Example: Complete UMEP workflow using pymdurs and umepr
 
     This example demonstrates how to:
     1. Collect urban data using pymdurs (DEM, buildings, vegetation)
@@ -18,19 +24,23 @@ def _():
     Inspired by: https://github.com/UMEP-dev/umep-rust/blob/main/demos/athens-demo.py
 
     Required dependencies (install separately):
-        pip install geopandas rasterio pyproj
-        pip install "umepr @ git+https://github.com/UMEP-dev/umep-rust.git"
-        # umep (optional) for additional SOLWEIG features
-
+    ```bash
+    pip install geopandas rasterio pyproj
+    ```
+    ### umep (optional) for additional SOLWEIG features
+    ```bash
+    pip install "umepr @ git+https://github.com/UMEP-dev/umep-rust.git"
+    ```
     Note: On Apple Silicon (ARM64), umepr may require the x86_64 target:
-        rustup target add x86_64-apple-darwin
-    """
+    ```bash
+    rustup target add x86_64-apple-darwin
+    ```
+    """)
     return
 
 
 @app.cell
 def _():
-
     import os
     from pathlib import Path
 
@@ -75,7 +85,6 @@ def _():
 
     print("HAS_UMEPR", HAS_UMEPR)
     print("HAS_UMEP", HAS_UMEP)
-
 
 
     # ========================================================================
@@ -319,7 +328,7 @@ def _():
 
         # Bounding box (La Rochelle area, France)
         # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
-        bbox_wgs84 = (-1.155951, 46.155636, -1.150618, 46.157954)
+        bbox_wgs84 = (-1.152704, 46.181627, -1.139893, 46.18699)
         working_crs = 2154  # Lambert 93
 
         print("\n📦 Configuration:")
@@ -673,6 +682,28 @@ def _():
         run_umep(output_path=output_folder)
 
     _main_()
+    return (rasterio,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## Visualisation Tmrt (Mean Radiant Temperature)
+
+    Affichage du raster Tmrt_average.tif généré par SOLWEIG.
+    """)
+    return
+
+
+@app.cell
+def _(rasterio):
+    from rasterio.plot import show
+    from matplotlib import pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(15, 15))
+    src = rasterio.open("output/Tmrt_average.tif")
+    plt.imshow(src.read(1), cmap='pink')
+    show(src, ax=ax, cmap='plasma')
     return
 
 

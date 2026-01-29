@@ -125,5 +125,10 @@ examples/output/
 examples/temp/
 examples/output/
 examples/temp/
+examples/working/
+notebooks/output/
+notebooks/temp/
+notebooks/working/
+
 *.tif
 **__pycache__**
