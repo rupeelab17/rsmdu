@@ -127,9 +127,54 @@ pymdurs/
 
 ## 🚀 Installation
 
+### Python Package
+
+**Requirements:** Python >= 3.9, pandas >= 2.0.0, numpy >= 2.0.2
+
+**Important:** Run maturin from the **project root** (where `pyproject.toml` is). Maturin uses `manifest-path = "pymdurs/Cargo.toml"`.
+
+#### 1. Clone and setup
+
+```bash
+git clone https://github.com/rupeelab17/rsmdu.git
+cd rsmdu
+uv venv .venv --python 3.13
+source .venv/bin/activate
+uv pip install maturin
+uv sync
+```
+
+#### 2. Install GDAL (prerequisite)
+
+| Platform    | Command                                                                                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **macOS**   | `brew install gdal` or `ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal`                                                                                |
+| **Linux**   | `sudo apt-get update && sudo apt-get install -y libgdal-dev gdal-bin libclang-dev`                                                                                 |
+| **Windows** | [OSGeo4W](https://trac.osgeo.org/osgeo4w/) (GDAL, GEOS, PROJ, SQLite3) + `choco install llvm pkgconfiglite sqlite -y` + set `GDAL_HOME`, `PKG_CONFIG_PATH`, `PATH` |
+
+#### 3. Build (maturin develop)
+
+| Platform                  | Target                      | Command                                                                  |
+| ------------------------- | --------------------------- | ------------------------------------------------------------------------ |
+| **macOS** (Apple Silicon) | `aarch64-apple-darwin`      | `maturin develop --target aarch64-apple-darwin`                          |
+| **macOS** (Intel)         | `x86_64-apple-darwin`       | `maturin develop --target x86_64-apple-darwin`                           |
+| **Linux** (x86_64)        | `x86_64-unknown-linux-gnu`  | `maturin develop --target x86_64-unknown-linux-gnu` or `maturin develop` |
+| **Linux** (ARM64)         | `aarch64-unknown-linux-gnu` | `maturin develop --target aarch64-unknown-linux-gnu`                     |
+| **Windows**               | `x86_64-pc-windows-msvc`    | `maturin develop --target x86_64-pc-windows-msvc`                        |
+
+With uv: `uv run maturin develop --target <target>`
+
+#### 4. Verify and release
+
+```bash
+python -c "import pymdurs; print('OK')"
+# Release wheel
+maturin build --target <target> --release
+```
+
 ### Installing Rust
 
-Before building the project, you need to install Rust and Cargo. Follow the instructions for your operating system:
+Maturin compiles the Rust extension. If Rust is not installed, follow the instructions for your operating system:
 
 #### Windows
 
@@ -141,7 +186,6 @@ Before building the project, you need to install Rust and Cargo. Follow the inst
 2. **Or use PowerShell:**
 
    ```powershell
-   # Download and run rustup-init
    Invoke-WebRequest -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
    .\rustup-init.exe
    ```
@@ -171,7 +215,6 @@ Before building the project, you need to install Rust and Cargo. Follow the inst
 2. **Or use rustup (official installer):**
 
    ```bash
-   # Download and run rustup
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
@@ -215,7 +258,6 @@ xcode-select --install
 2. **Or use rustup (recommended for latest version):**
 
    ```bash
-   # Download and run rustup
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    source $HOME/.cargo/env
    ```
@@ -246,52 +288,7 @@ xcode-select --install
    cargo --version
    ```
 
-### Python Package
-
-**Requirements:** Python >= 3.9, pandas >= 2.0.0, numpy >= 2.0.2
-
-**Important:** Run maturin from the **project root** (where `pyproject.toml` is). Maturin uses `manifest-path = "pymdurs/Cargo.toml"`.
-
-#### 1. Clone and setup
-
-```bash
-git clone https://github.com/rupeelab17/rsmdu.git
-cd rsmdu
-uv venv .venv --python 3.13
-source .venv/bin/activate
-uv pip install maturin
-uv sync
-```
-
-#### 2. Install GDAL (prerequisite)
-
-| Platform | Command |
-|----------|---------|
-| **macOS** | `brew install gdal` or `ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal` |
-| **Linux** | `sudo apt-get update && sudo apt-get install -y libgdal-dev gdal-bin libclang-dev` |
-| **Windows** | [OSGeo4W](https://trac.osgeo.org/osgeo4w/) (GDAL, GEOS, PROJ, SQLite3) + `choco install llvm pkgconfiglite sqlite -y` + set `GDAL_HOME`, `PKG_CONFIG_PATH`, `PATH` |
-
-#### 3. Build (maturin develop)
-
-| Platform | Target | Command |
-|----------|--------|---------|
-| **macOS** (Apple Silicon) | `aarch64-apple-darwin` | `maturin develop --target aarch64-apple-darwin` |
-| **macOS** (Intel) | `x86_64-apple-darwin` | `maturin develop --target x86_64-apple-darwin` |
-| **Linux** (x86_64) | `x86_64-unknown-linux-gnu` | `maturin develop --target x86_64-unknown-linux-gnu` or `maturin develop` |
-| **Linux** (ARM64) | `aarch64-unknown-linux-gnu` | `maturin develop --target aarch64-unknown-linux-gnu` |
-| **Windows** | `x86_64-pc-windows-msvc` | `maturin develop --target x86_64-pc-windows-msvc` |
-
-With uv: `uv run maturin develop --target <target>`
-
-#### 4. Verify and release
-
-```bash
-python -c "import pymdurs; print('OK')"
-# Release wheel
-maturin build --target <target> --release
-```
-
-#### WebAssembly
+### WebAssembly
 
 ```bash
 # Install wasm-pack
