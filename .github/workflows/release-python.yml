@@ -176,12 +176,17 @@ jobs:
       - name: Install Rust target
         run: rustup target add ${{ steps.target.outputs.target }}
 
+      - name: Add Cargo bin to PATH (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          CARGO_BIN="C:\Users\runneradmin\.cargo\bin"
+          echo "PATH=$CARGO_BIN:$PATH" >> $GITHUB_ENV
+
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
           command: build
           target: ${{ steps.target.outputs.target }}
-          rust-toolchain: stable # Ajoutez cette ligne
           args: >
             --release
             --manifest-path pymdurs/Cargo.toml
