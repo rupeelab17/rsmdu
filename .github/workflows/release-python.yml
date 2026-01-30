@@ -174,12 +174,12 @@ jobs:
           echo "SQLite3_INCLUDE_DIR=$VCPKG_ROOT/installed/x64-windows-static/include" >> $GITHUB_ENV
           echo "SQLite3_LIBRARY=$VCPKG_ROOT/installed/x64-windows-static/lib/sqlite3.lib" >> $GITHUB_ENV
 
-          - name: Install GDAL, GEOS, PROJ (Windows)
-          if: matrix.os == 'windows-latest'
-          id: setup-osgeo4w
-          uses: echoix/setup-OSGeo4W@v0.2.0
-          with:
-            packages: gdal-devel geos-devel proj-devel
+      - name: Install GDAL, GEOS, PROJ (Windows)
+        if: matrix.os == 'windows-latest'
+        id: setup-osgeo4w
+        uses: echoix/setup-OSGeo4W@v0.2.0
+        with:
+          packages: gdal-devel geos-devel proj-devel
 
       - name: Debug OSGeo4W installation (Windows)
         if: matrix.os == 'windows-latest'
