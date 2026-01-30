@@ -136,17 +136,29 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
+
           echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
           echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
+
+          # SQLite3 pour CMake
           echo "SQLite3_ROOT=$O4W_ROOT" >> $GITHUB_ENV
-          # Ajoutez les chemins au PATH sans l'écraser
+          echo "SQLite3_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
+          echo "SQLite3_LIBRARY=$O4W_ROOT/lib/sqlite3.lib" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$O4W_ROOT" >> $GITHUB_ENV
+
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           echo "$O4W_ROOT/bin" >> $GITHUB_PATH
           echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
+
           choco install llvm pkgconfiglite sqlite -y
+
+          # Vérifier que SQLite3 est bien présent
+          echo "=== Checking SQLite3 files ==="
+          ls -la "$O4W_ROOT/include" | grep sqlite || echo "sqlite3.h NOT FOUND"
+          ls -la "$O4W_ROOT/lib" | grep sqlite || echo "sqlite3.lib NOT FOUND"
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
