@@ -290,7 +290,7 @@ maturin develop --target x86_64-pc-windows-msvc
 
 **Release wheel:** `maturin build --target <target> --release` (replace `<target>` with the appropriate value for your platform).
 
-#### Install from source using maturin:
+### Install from source using maturin:
 
 ```bash
 git clone https://github.com/rupeelab17/rsmdu.git
@@ -301,13 +301,13 @@ uv pip install maturin
 uv sync
 ```
 
-# For Windows
+#### For Windows
 
 ```bash
 uv pip install --no-cache-dir gdal
 ```
 
-# For macOS
+#### For macOS
 
 ```bash
 ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal
@@ -315,7 +315,7 @@ unset VIRTUAL_ENV
 unset CONDA_PREFIX
 ```
 
-# Apple Silicon (ARM64)
+##### Apple Silicon (ARM64)
 
 ```bash
 maturin develop --target aarch64-apple-darwin
@@ -327,7 +327,7 @@ maturin develop
 
 **Important:** Run maturin from the **project root** (where `pyproject.toml` is). Maturin uses `manifest-path = "pymdurs/Cargo.toml"`.
 
-### WebAssembly
+#### WebAssembly
 
 ```bash
 # Install wasm-pack
