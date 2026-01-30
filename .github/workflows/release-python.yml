@@ -83,6 +83,8 @@ jobs:
             architecture: aarch64
           - os: macos-15
             architecture: x86-64
+          - os: macos-26
+            architecture: x86-64
           - os: macos-15-intel
             architecture: aarch64
           - os: ubuntu-latest
@@ -185,6 +187,8 @@ jobs:
             fi
           elif [[ "${{ matrix.architecture }}" == "x86-64" ]]; then
             if [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+              echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
+            elif [[ "${{ matrix.os }}" == "macos-26" ]]; then
               echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
             elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
               echo "target=x86_64-pc-windows-msvc" >> $GITHUB_OUTPUT
