@@ -186,12 +186,20 @@ jobs:
         run: |
           O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
 
+          # Variables d'environnement essentielles
           echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
+          echo "GDAL_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
+          echo "GDAL_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
+          echo "GDAL_DATA=$O4W_ROOT/share/gdal" >> $GITHUB_ENV
+
           echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
+
+          # PKG_CONFIG_PATH avec séparateur Windows correct
           echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
 
+          # Ajouter au PATH
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           echo "$O4W_ROOT/bin" >> $GITHUB_PATH
           echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
@@ -199,6 +207,24 @@ jobs:
           choco install llvm pkgconfiglite -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
+
+      - name: Verify GDAL installation (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
+
+          echo "=== Checking GDAL files ==="
+          ls -la "$O4W_ROOT/lib" | grep gdal || echo "No GDAL lib found"
+          ls -la "$O4W_ROOT/include" | grep gdal || echo "No GDAL headers found"
+          ls -la "$O4W_ROOT/lib/pkgconfig" | grep gdal || echo "No gdal.pc found"
+
+          # Vérifier avec pkg-config
+          export PKG_CONFIG_PATH="$O4W_ROOT/lib/pkgconfig"
+          pkg-config --modversion gdal || echo "pkg-config cannot find GDAL"
+
+          # Vérifier gdalinfo
+          export PATH="$O4W_ROOT/bin:$PATH"
+          gdalinfo --version || echo "gdalinfo not found"
 
       - name: Install maturin
         run: pip install maturin

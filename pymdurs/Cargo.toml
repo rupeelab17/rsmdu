@@ -24,7 +24,7 @@ rsmdu = { path = "../rsmdu" }
 
 # GeoJSON for bindings
 geojson = "0.24"
-gdal = "0.19.0"
+gdal = { version = "0.19.0", features = ["bindgen"] }
 
 # Note: Polars DataFrame conversion will be handled via Python polars package
 # We don't need polars with python feature here
