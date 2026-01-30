@@ -208,7 +208,7 @@ jobs:
   publish-to-pypi:
     needs: [build-sdist, build-wheels]
     environment:
-      name: release-python
+      name: release-python-${{ matrix.os }}-${{ matrix.architecture }}
       url: https://pypi.org/project/pymdurs
     runs-on: ubuntu-latest
     permissions:
