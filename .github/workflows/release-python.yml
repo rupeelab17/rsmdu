@@ -103,9 +103,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip" # Cache pip
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ matrix.architecture }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.architecture }}-cargo-
 
       - name: Remove WindowsApps from PATH (Windows)
         if: matrix.os == 'windows-latest'
@@ -114,23 +128,58 @@ jobs:
           echo "PATH=$path" >> $env:GITHUB_ENV
         shell: pwsh
 
+      - name: Cache GDAL (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/lib/libgdal*
+            /usr/include/gdal*
+          key: ${{ runner.os }}-gdal-${{ hashFiles('.github/workflows/release-python.yml') }}
+
       - name: Install GDAL (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
 
+      - name: Cache Homebrew (macOS)
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/gdal
+          key: ${{ runner.os }}-brew-gdal-${{ hashFiles('.github/workflows/release-python.yml') }}
+
       - name: Install GDAL (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
           brew install gdal
 
-      - name: Install GDAL, GEOS, PROJ and SQLite3 (Windows)
+      - name: Cache OSGeo4W (Windows)
+        if: matrix.os == 'windows-latest'
+        id: cache-osgeo4w
+        uses: actions/cache@v4
+        with:
+          path: C:\OSGeo4W
+          key: ${{ runner.os }}-osgeo4w-v2-${{ hashFiles('.github/workflows/release-python.yml') }}
+
+      - name: Install SQLite3 via vcpkg (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          vcpkg install sqlite3:x64-windows-static
+          VCPKG_ROOT="C:/vcpkg"
+          echo "SQLite3_ROOT=$VCPKG_ROOT/installed/x64-windows-static" >> $GITHUB_ENV
+          echo "SQLite3_INCLUDE_DIR=$VCPKG_ROOT/installed/x64-windows-static/include" >> $GITHUB_ENV
+          echo "SQLite3_LIBRARY=$VCPKG_ROOT/installed/x64-windows-static/lib/sqlite3.lib" >> $GITHUB_ENV
+
+      - name: Install GDAL, GEOS, PROJ (Windows)
         if: matrix.os == 'windows-latest'
         id: setup-osgeo4w
         uses: echoix/setup-OSGeo4W@v0.2.0
         with:
-          packages: gdal-devel geos-devel proj-devel sqlite3
+          packages: gdal-devel geos-devel proj-devel
 
       - name: Set env and install LLVM, pkg-config (Windows)
         if: matrix.os == 'windows-latest'
@@ -143,22 +192,11 @@ jobs:
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
 
-          # SQLite3 pour CMake
-          echo "SQLite3_ROOT=$O4W_ROOT" >> $GITHUB_ENV
-          echo "SQLite3_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
-          echo "SQLite3_LIBRARY=$O4W_ROOT/lib/sqlite3.lib" >> $GITHUB_ENV
-          echo "CMAKE_PREFIX_PATH=$O4W_ROOT" >> $GITHUB_ENV
-
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           echo "$O4W_ROOT/bin" >> $GITHUB_PATH
           echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
 
-          choco install llvm pkgconfiglite sqlite -y
-
-          # Vérifier que SQLite3 est bien présent
-          echo "=== Checking SQLite3 files ==="
-          ls -la "$O4W_ROOT/include" | grep sqlite || echo "sqlite3.h NOT FOUND"
-          ls -la "$O4W_ROOT/lib" | grep sqlite || echo "sqlite3.lib NOT FOUND"
+          choco install llvm pkgconfiglite -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
 

@@ -3,6 +3,10 @@ name = "rsmdu"
 version = "0.1.1"
 edition = "2021"
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Core library"
+license = "GPL-3.0"
+repository = "https://github.com/rupeelab17/rsmdu"
+homepage = "https://github.com/rupeelab17/rsmdu"
+documentation = "https://github.com/rupeelab17/rsmdu#readme"
 
 [features]
 default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif"]
