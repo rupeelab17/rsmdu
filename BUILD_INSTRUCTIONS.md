@@ -27,10 +27,10 @@ brew install gdal
 
 ### Cibles Rust
 
-| Architecture | Target |
-|--------------|--------|
+| Architecture               | Target                 |
+| -------------------------- | ---------------------- |
 | Apple Silicon (M1, M2, M3) | `aarch64-apple-darwin` |
-| Intel (x86_64) | `x86_64-apple-darwin` |
+| Intel (x86_64)             | `x86_64-apple-darwin`  |
 
 ### Commandes
 
@@ -64,9 +64,9 @@ sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
 
 ### Cibles Rust
 
-| Architecture | Target |
-|--------------|--------|
-| x86_64 | `x86_64-unknown-linux-gnu` |
+| Architecture    | Target                      |
+| --------------- | --------------------------- |
+| x86_64          | `x86_64-unknown-linux-gnu`  |
 | ARM64 (aarch64) | `aarch64-unknown-linux-gnu` |
 
 ### Commandes
@@ -106,9 +106,9 @@ maturin build --target aarch64-unknown-linux-gnu --release
 
 ### Cible Rust
 
-| Architecture | Target |
-|--------------|--------|
-| x86_64 | `x86_64-pc-windows-msvc` |
+| Architecture | Target                   |
+| ------------ | ------------------------ |
+| x86_64       | `x86_64-pc-windows-msvc` |
 
 ### Commandes
 

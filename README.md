@@ -134,7 +134,6 @@ Before building the project, you need to install Rust and Cargo. Follow the inst
 #### Windows
 
 1. **Download and run rustup-init.exe:**
-
    - Visit https://rustup.rs/
    - Download `rustup-init.exe`
    - Run the installer and follow the prompts
@@ -249,47 +248,84 @@ xcode-select --install
 
 ### Python Package
 
-Install from source using maturin:
+**Requirements:** Python >= 3.9, pandas >= 2.0.0, numpy >= 2.0.2
+
+#### macOS
+
+```bash
+brew install gdal
+# Apple Silicon
+maturin develop --target aarch64-apple-darwin
+# Intel
+maturin develop --target x86_64-apple-darwin
+# With uv
+uv run maturin develop --target aarch64-apple-darwin
+```
+
+#### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
+# x86_64
+maturin develop --target x86_64-unknown-linux-gnu
+# or native: maturin develop
+# ARM64
+maturin develop --target aarch64-unknown-linux-gnu
+```
+
+#### Windows
+
+1. Install [OSGeo4W](https://trac.osgeo.org/osgeo4w/) (GDAL, GEOS, PROJ, SQLite3)
+2. `choco install llvm pkgconfiglite sqlite -y`
+3. Set `GDAL_HOME`, `PKG_CONFIG_PATH`, add OSGeo4W and Chocolatey to `PATH`
+
+```powershell
+maturin develop --target x86_64-pc-windows-msvc
+```
+
+**Maturin** requires an active Python environment (venv or Conda). Use `uv sync` or `pip install maturin` before building.
+
+**Verify:** `python -c "import pymdurs; print('OK')"`
+
+**Release wheel:** `maturin build --target <target> --release` (replace `<target>` with the appropriate value for your platform).
+
+#### Install from source using maturin:
 
 ```bash
 git clone https://github.com/rupeelab17/rsmdu.git
 cd rsmdu
 uv venv .venv --python 3.13
 source .venv/bin/activate
-# Install maturin
 uv pip install maturin
 uv sync
+```
 
 # For Windows
+
+```bash
 uv pip install --no-cache-dir gdal
-# For Apple
+```
+
+# For macOS
+
+```bash
 ARCHFLAGS="-arch arm64" uv pip install --no-cache-dir gdal
 unset VIRTUAL_ENV
 unset CONDA_PREFIX
+```
 
-# For Apple Silicon (ARM64) - use native target
+# Apple Silicon (ARM64)
+
+```bash
 maturin develop --target aarch64-apple-darwin
-
-# For Intel Mac (x86_64) - use default or specify target
+# Intel Mac (x86_64)
 maturin develop --target x86_64-apple-darwin
-
-# Or let maturin auto-detect (may require rustup for cross-compilation)
+# Or let maturin auto-detect
 maturin develop
 ```
 
-**Note**:On Apple Silicon, if you get an error about missing `x86_64-apple-darwin` target, use `--target aarch64-apple-darwin` explicitly.
-
-**Important**: Maturin requires an active Python environment:
-
-- **Conda**: Activate your conda environment first (`conda activate base` or your environment)
-- **venv**: Create and activate a virtual environment (`python3 -m venv .venv && source .venv/bin/activate`)
-- Maturin will detect the environment via `CONDA_PREFIX` or `VIRTUAL_ENV` environment variables
-
-**Requirements:**
-
-- Python >= 3.9
-- pandas >= 2.0.0
-- numpy >= 2.0.2
+**Important:** Run maturin from the **project root** (where `pyproject.toml` is). Maturin uses `manifest-path = "pymdurs/Cargo.toml"`.
 
 ### WebAssembly
 
@@ -423,7 +459,7 @@ const geojson = {
 
 const collection = WasmBuildingCollection.from_geojson(
   JSON.stringify(geojson),
-  3.0 // default storey height in meters
+  3.0, // default storey height in meters
 );
 
 // Process heights
@@ -452,7 +488,7 @@ const dem = await WasmDem.from_ign_api(
   -1.152704, // min_x
   46.181627, // min_y
   -1.139893, // max_x
-  46.18699 // max_y
+  46.18699, // max_y
 );
 
 // Get DEM dimensions
@@ -602,12 +638,10 @@ The library integrates with the French IGN (Institut Géographique National) Gé
 The project uses a Cargo workspace with three crates:
 
 1. **`rsmdu`**: Core Rust library with all geospatial functionality
-
    - Uses feature flags (`wasm`) to conditionally compile WASM-incompatible dependencies
    - Optional dependencies: `gdal`, `proj`, `geos`, `polars`, `reqwest`, etc.
 
 2. **`pymdurs`**: Python bindings using PyO3
-
    - Depends on `rsmdu` crate
    - Provides Pythonic API with aliases
 
@@ -784,22 +818,7 @@ Contributions are welcome! This project follows standard Rust and Python best pr
    cargo test
    ```
 
-3. **Set up Python development:**
-
-   ```bash
-   cd pymdurs
-   pip install maturin
-
-   # Activate your Python environment (conda, venv, etc.)
-   # For Conda:
-   conda activate base  # or your environment
-   # For venv:
-   # source .venv/bin/activate
-
-   maturin develop --target aarch64-apple-darwin  # or your target
-   ```
-
-   **Note**: Maturin requires either a virtual environment (venv) or Conda environment to be active. Make sure `VIRTUAL_ENV` or `CONDA_PREFIX` is set.
+3. **Set up Python development:** See [Python Package](#python-package) for platform-specific build instructions.
 
 4. **Set up WebAssembly development:**
    ```bash
