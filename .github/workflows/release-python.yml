@@ -129,45 +129,40 @@ jobs:
           channels: conda-forge
           channel-priority: strict
 
-      - name: Install GDAL via Conda (Windows)
+      - name: Install GDAL via vcpkg (Windows)
         if: matrix.os == 'windows-latest'
-        shell: bash -el {0}
         run: |
-          conda install -c conda-forge gdal geos proj sqlite -y
+          # Installer GDAL et ses dépendances via vcpkg
+          vcpkg install gdal[core]:x64-windows
+          vcpkg install geos:x64-windows
+          vcpkg install proj:x64-windows
+          vcpkg install sqlite3:x64-windows
 
-          CONDA_PREFIX=$(conda info --base)
-          CONDA_LIB="$CONDA_PREFIX/Library"
+          VCPKG_ROOT="C:/vcpkg"
+          VCPKG_INSTALLED="$VCPKG_ROOT/installed/x64-windows"
 
-          # Créer gdal_i.lib comme copie de gdal.lib pour MSVC
-          if [ -f "$CONDA_LIB/lib/gdal.lib" ]; then
-            cp "$CONDA_LIB/lib/gdal.lib" "$CONDA_LIB/lib/gdal_i.lib"
-            echo "✅ Created gdal_i.lib from gdal.lib"
-          else
-            echo "❌ Warning: gdal.lib not found!"
-            ls -la "$CONDA_LIB/lib/" | grep -i gdal
-          fi
+          echo "=== Checking GDAL files ==="
+          ls -la "$VCPKG_INSTALLED/lib/" | grep -i gdal
+          ls -la "$VCPKG_INSTALLED/bin/" | grep -i gdal
 
-          echo "GDAL_HOME=$CONDA_LIB" >> $GITHUB_ENV
-          echo "GDAL_LIB_DIR=$CONDA_LIB/lib" >> $GITHUB_ENV
-          echo "GDAL_INCLUDE_DIR=$CONDA_LIB/include" >> $GITHUB_ENV
-          echo "GDAL_DATA=$CONDA_LIB/share/gdal" >> $GITHUB_ENV
+          echo "GDAL_HOME=$VCPKG_INSTALLED" >> $GITHUB_ENV
+          echo "GDAL_LIB_DIR=$VCPKG_INSTALLED/lib" >> $GITHUB_ENV
+          echo "GDAL_INCLUDE_DIR=$VCPKG_INSTALLED/include" >> $GITHUB_ENV
+          echo "GDAL_DATA=$VCPKG_INSTALLED/share/gdal" >> $GITHUB_ENV
 
-          echo "GEOS_LIB_DIR=$CONDA_LIB/lib" >> $GITHUB_ENV
-          echo "GEOS_INCLUDE_DIR=$CONDA_LIB/include" >> $GITHUB_ENV
-          echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
+          echo "GEOS_LIB_DIR=$VCPKG_INSTALLED/lib" >> $GITHUB_ENV
+          echo "GEOS_INCLUDE_DIR=$VCPKG_INSTALLED/include" >> $GITHUB_ENV
 
-          echo "PROJ_LIB=$CONDA_LIB/share/proj" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=$CONDA_LIB/lib/pkgconfig" >> $GITHUB_ENV
-          echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
+          echo "PROJ_LIB=$VCPKG_INSTALLED/share/proj" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$VCPKG_INSTALLED/lib/pkgconfig" >> $GITHUB_ENV
 
-          echo "$CONDA_LIB/bin" >> $GITHUB_PATH
+          echo "$VCPKG_INSTALLED/bin" >> $GITHUB_PATH
+          echo "$VCPKG_INSTALLED/tools" >> $GITHUB_PATH
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-          echo "=== Verifying GDAL ==="
-          gdalinfo --version
-
-          echo "=== GDAL library files ==="
-          ls -la "$CONDA_LIB/lib/" | grep -i gdal
+          choco install llvm -y
+        env:
+          CHOCOLATEY_NO_PROMPT: 1
 
       - name: Install LLVM (Windows)
         if: matrix.os == 'windows-latest'
