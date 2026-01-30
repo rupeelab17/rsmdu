@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel, macos-15, windows-latest]
+        os: [ubuntu-latest, macos-26, macos-15-intel, macos-15, windows-latest]
         architecture: [x86-64, aarch64]
         exclude:
           - os: windows-latest
@@ -86,220 +86,141 @@ jobs:
           - os: macos-15-intel
             architecture: aarch64
           - os: ubuntu-latest
-            architecture: aarch64
+            architecture: aarch6
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.sha }}
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: ${{ inputs.sha }}
 
-      - name: Set swap space for Linux
-        if: matrix.os == 'ubuntu-latest'
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 10
+        - name: Set swap space for Linux
+          if: matrix.os == 'ubuntu-latest'
+          uses: pierotofy/set-swap-space@master
+          with:
+            swap-size-gb: 10
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip" # Cache pip
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: ${{ env.PYTHON_VERSION }}
+            cache: "pip"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        - name: Install Rust
+          uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ matrix.architecture }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.architecture }}-cargo-
+        - name: Install GDAL (Linux)
+          if: matrix.os == 'ubuntu-latest'
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
 
-      - name: Remove WindowsApps from PATH (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          $path = ($env:Path -split ';' | Where-Object { $_ -notmatch 'WindowsApps' }) -join ';'
-          echo "PATH=$path" >> $env:GITHUB_ENV
-        shell: pwsh
+        - name: Install GDAL (macOS)
+          if: startsWith(matrix.os, 'macos')
+          run: |
+            brew install gdal
 
-      - name: Cache GDAL (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/lib/libgdal*
-            /usr/include/gdal*
-          key: ${{ runner.os }}-gdal-${{ hashFiles('.github/workflows/release-python.yml') }}
+        # === SECTION WINDOWS AVEC CONDA ===
+        - name: Setup Miniconda (Windows)
+          if: matrix.os == 'windows-latest'
+          uses: conda-incubator/setup-miniconda@v3
+          with:
+            auto-update-conda: true
+            python-version: ${{ env.PYTHON_VERSION }}
+            channels: conda-forge
+            channel-priority: strict
 
-      - name: Install GDAL (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgdal-dev gdal-bin libclang-dev
+        - name: Install GDAL via Conda (Windows)
+          if: matrix.os == 'windows-latest'
+          shell: bash -el {0}
+          run: |
+            conda install -c conda-forge gdal geos proj sqlite -y
 
-      - name: Cache Homebrew (macOS)
-        if: startsWith(matrix.os, 'macos')
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/gdal
-          key: ${{ runner.os }}-brew-gdal-${{ hashFiles('.github/workflows/release-python.yml') }}
+            CONDA_PREFIX=$(conda info --base)
+            CONDA_LIB="$CONDA_PREFIX/Library"
 
-      - name: Install GDAL (macOS)
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          brew install gdal
+            echo "GDAL_HOME=$CONDA_LIB" >> $GITHUB_ENV
+            echo "GDAL_LIB_DIR=$CONDA_LIB/lib" >> $GITHUB_ENV
+            echo "GDAL_INCLUDE_DIR=$CONDA_LIB/include" >> $GITHUB_ENV
+            echo "GDAL_DATA=$CONDA_LIB/share/gdal" >> $GITHUB_ENV
 
-      - name: Cache OSGeo4W (Windows)
-        if: matrix.os == 'windows-latest'
-        id: cache-osgeo4w
-        uses: actions/cache@v4
-        with:
-          path: C:\OSGeo4W
-          key: ${{ runner.os }}-osgeo4w-v2-${{ hashFiles('.github/workflows/release-python.yml') }}
+            echo "GEOS_LIB_DIR=$CONDA_LIB/lib" >> $GITHUB_ENV
+            echo "GEOS_INCLUDE_DIR=$CONDA_LIB/include" >> $GITHUB_ENV
+            echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
 
-      - name: Install SQLite3 via vcpkg (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          vcpkg install sqlite3:x64-windows-static
-          VCPKG_ROOT="C:/vcpkg"
-          echo "SQLite3_ROOT=$VCPKG_ROOT/installed/x64-windows-static" >> $GITHUB_ENV
-          echo "SQLite3_INCLUDE_DIR=$VCPKG_ROOT/installed/x64-windows-static/include" >> $GITHUB_ENV
-          echo "SQLite3_LIBRARY=$VCPKG_ROOT/installed/x64-windows-static/lib/sqlite3.lib" >> $GITHUB_ENV
+            echo "PROJ_LIB=$CONDA_LIB/share/proj" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH=$CONDA_LIB/lib/pkgconfig" >> $GITHUB_ENV
+            echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
 
-      - name: Install GDAL, GEOS, PROJ (Windows)
-        if: matrix.os == 'windows-latest'
-        id: setup-osgeo4w
-        uses: echoix/setup-OSGeo4W@v0.2.0
-        with:
-          packages: gdal-devel geos-devel proj-devel
+            echo "$CONDA_LIB/bin" >> $GITHUB_PATH
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Debug OSGeo4W installation (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
-          echo "OSGeo4W root: $O4W_ROOT"
+            echo "=== Verifying GDAL ==="
+            gdalinfo --version
+            pkg-config --modversion gdal || echo "pkg-config not working"
 
-          echo "=== Contents of lib/ ==="
-          ls -la "$O4W_ROOT/lib" | head -20
+        - name: Install LLVM (Windows)
+          if: matrix.os == 'windows-latest'
+          run: choco install llvm -y
+          env:
+            CHOCOLATEY_NO_PROMPT: 1
 
-          echo "=== Contents of include/ ==="
-          ls -la "$O4W_ROOT/include" | head -20
+        - name: Remove WindowsApps from PATH (Windows)
+          if: matrix.os == 'windows-latest'
+          shell: pwsh
+          run: |
+            $path = ($env:Path -split ';' | Where-Object { $_ -notmatch 'WindowsApps' }) -join ';'
+            echo "PATH=$path" >> $env:GITHUB_ENV
+        # === FIN SECTION WINDOWS ===
+        - name: Install maturin
+          run: pip install maturin
 
-          echo "=== Contents of lib/pkgconfig/ ==="
-          ls -la "$O4W_ROOT/lib/pkgconfig" || echo "pkgconfig directory not found"
-
-          echo "=== Looking for GDAL files ==="
-          find "$O4W_ROOT" -name "*gdal*" -type f | head -20
-
-      - name: Set env and install LLVM, pkg-config (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
-
-          # Convertir le chemin en format Windows pour certaines variables
-          O4W_WIN=$(cygpath -w "$O4W_ROOT" | sed 's/\\/\\\\/g')
-
-          echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
-          echo "GDAL_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
-          echo "GDAL_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
-          echo "GDAL_DATA=$O4W_ROOT/share/gdal" >> $GITHUB_ENV
-
-          echo "GEOS_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
-          echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
-          echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
-
-          echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
-
-          # Activer le backtrace Rust pour le débogage
-          echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
-
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          echo "$O4W_ROOT/bin" >> $GITHUB_PATH
-          echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
-
-          choco install llvm pkgconfiglite -y
-        env:
-          CHOCOLATEY_NO_PROMPT: 1
-
-      - name: Test pkg-config for GDAL (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
-          export PKG_CONFIG_PATH="$O4W_ROOT/lib/pkgconfig"
-          export PATH="$O4W_ROOT/bin:$PATH"
-
-          echo "=== Testing pkg-config ==="
-          pkg-config --version || echo "pkg-config not found"
-
-          echo "=== Listing .pc files ==="
-          ls -la "$O4W_ROOT/lib/pkgconfig" || echo "No pkgconfig dir"
-
-          echo "=== Testing GDAL detection ==="
-          pkg-config --modversion gdal || echo "GDAL not found via pkg-config"
-          pkg-config --cflags gdal || echo "Cannot get GDAL cflags"
-          pkg-config --libs gdal || echo "Cannot get GDAL libs"
-
-          echo "=== Testing gdalinfo ==="
-          gdalinfo --version || echo "gdalinfo not found"
-
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Set Rust target
-        id: target
-        run: |
-          if [[ "${{ matrix.architecture }}" == "aarch64" ]]; then
-            if [[ "${{ matrix.os }}" == "macos-15" ]]; then
-              echo "target=aarch64-apple-darwin" >> $GITHUB_OUTPUT
-            else
-              echo "target=aarch64-unknown-linux-gnu" >> $GITHUB_OUTPUT
+        - name: Set Rust target
+          id: target
+          run: |
+            if [[ "${{ matrix.architecture }}" == "aarch64" ]]; then
+              if [[ "${{ matrix.os }}" == "macos-15" ]]; then
+                echo "target=aarch64-apple-darwin" >> $GITHUB_OUTPUT
+              else
+                echo "target=aarch64-unknown-linux-gnu" >> $GITHUB_OUTPUT
+              fi
+            elif [[ "${{ matrix.architecture }}" == "x86-64" ]]; then
+              if [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
+                echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
+              elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+                echo "target=x86_64-pc-windows-msvc" >> $GITHUB_OUTPUT
+              else
+                echo "target=x86_64-unknown-linux-gnu" >> $GITHUB_OUTPUT
+              fi
             fi
-          elif [[ "${{ matrix.architecture }}" == "x86-64" ]]; then
-            if [[ "${{ matrix.os }}" == "macos-15-intel" ]]; then
-              echo "target=x86_64-apple-darwin" >> $GITHUB_OUTPUT
-            elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-              echo "target=x86_64-pc-windows-msvc" >> $GITHUB_OUTPUT
-            else
-              echo "target=x86_64-unknown-linux-gnu" >> $GITHUB_OUTPUT
-            fi
-          fi
 
-      - name: Install Rust target
-        run: rustup target add ${{ steps.target.outputs.target }}
+        - name: Install Rust target
+          run: rustup target add ${{ steps.target.outputs.target }}
 
-      - name: Build wheel
-        uses: PyO3/maturin-action@v1
-        with:
-          command: build
-          target: ${{ steps.target.outputs.target }}
-          args: >
-            --release
-            --manifest-path pymdurs/Cargo.toml
-            --out dist
-          manylinux: ${{ matrix.os == 'ubuntu-latest' && 'off' || (matrix.architecture == 'aarch64' && '2_24' || 'auto') }}
-          maturin-version: 1.11.4
+        - name: Build wheel
+          uses: PyO3/maturin-action@v1
+          with:
+            command: build
+            target: ${{ steps.target.outputs.target }}
+            args: >
+              --release
+              --manifest-path pymdurs/Cargo.toml
+              --out dist
+            manylinux: ${{ matrix.os == 'ubuntu-latest' && 'off' || (matrix.architecture == 'aarch64' && '2_24' || 'auto') }}
+            maturin-version: 1.11.4
 
-      - name: Test wheel
-        run: |
-          pip install --force-reinstall --verbose dist/*.whl
-          cd /tmp
-          python -c 'import pymdurs; print("✅ pymdurs imported successfully")'
-          python -c 'import pymdurs; print("Available classes:", [x for x in dir(pymdurs.geometric) if not x.startswith("_")])'
-          python -c 'import pymdurs; bbox = pymdurs.PyBoundingBox(-1.0, 46.0, 1.0, 47.0); print("✅ PyBoundingBox works:", bbox.min_x)'
+        - name: Test wheel
+          run: |
+            pip install --force-reinstall --verbose dist/*.whl
+            cd /tmp
+            python -c 'import pymdurs; print("✅ pymdurs imported successfully")'
+            python -c 'import pymdurs; print("Available classes:", [x for x in dir(pymdurs.geometric) if not x.startswith("_")])'
+            python -c 'import pymdurs; bbox = pymdurs.PyBoundingBox(-1.0, 46.0, 1.0, 47.0); print("✅ PyBoundingBox works:", bbox.min_x)'
 
-      - name: Upload wheel
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheel-${{ matrix.os }}-${{ matrix.architecture }}
-          path: dist/*.whl
+        - name: Upload wheel
+          uses: actions/upload-artifact@v4
+          with:
+            name: wheel-${{ matrix.os }}-${{ matrix.architecture }}
+            path: dist/*.whl
 
   publish-to-pypi:
     needs: [build-sdist, build-wheels]
