@@ -174,19 +174,39 @@ jobs:
           echo "SQLite3_INCLUDE_DIR=$VCPKG_ROOT/installed/x64-windows-static/include" >> $GITHUB_ENV
           echo "SQLite3_LIBRARY=$VCPKG_ROOT/installed/x64-windows-static/lib/sqlite3.lib" >> $GITHUB_ENV
 
-      - name: Install GDAL, GEOS, PROJ (Windows)
+          - name: Install GDAL, GEOS, PROJ (Windows)
+          if: matrix.os == 'windows-latest'
+          id: setup-osgeo4w
+          uses: echoix/setup-OSGeo4W@v0.2.0
+          with:
+            packages: gdal-devel geos-devel proj-devel
+
+      - name: Debug OSGeo4W installation (Windows)
         if: matrix.os == 'windows-latest'
-        id: setup-osgeo4w
-        uses: echoix/setup-OSGeo4W@v0.2.0
-        with:
-          packages: gdal-devel geos-devel proj-devel
+        run: |
+          O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
+          echo "OSGeo4W root: $O4W_ROOT"
+
+          echo "=== Contents of lib/ ==="
+          ls -la "$O4W_ROOT/lib" | head -20
+
+          echo "=== Contents of include/ ==="
+          ls -la "$O4W_ROOT/include" | head -20
+
+          echo "=== Contents of lib/pkgconfig/ ==="
+          ls -la "$O4W_ROOT/lib/pkgconfig" || echo "pkgconfig directory not found"
+
+          echo "=== Looking for GDAL files ==="
+          find "$O4W_ROOT" -name "*gdal*" -type f | head -20
 
       - name: Set env and install LLVM, pkg-config (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
 
-          # Variables d'environnement essentielles
+          # Convertir le chemin en format Windows pour certaines variables
+          O4W_WIN=$(cygpath -w "$O4W_ROOT" | sed 's/\\/\\\\/g')
+
           echo "GDAL_HOME=$O4W_ROOT" >> $GITHUB_ENV
           echo "GDAL_LIB_DIR=$O4W_ROOT/lib" >> $GITHUB_ENV
           echo "GDAL_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
@@ -196,10 +216,11 @@ jobs:
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
 
-          # PKG_CONFIG_PATH avec séparateur Windows correct
           echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
 
-          # Ajouter au PATH
+          # Activer le backtrace Rust pour le débogage
+          echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
+
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           echo "$O4W_ROOT/bin" >> $GITHUB_PATH
           echo "/c/ProgramData/chocolatey/bin" >> $GITHUB_PATH
@@ -208,22 +229,25 @@ jobs:
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
-      - name: Verify GDAL installation (Windows)
+      - name: Test pkg-config for GDAL (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           O4W_ROOT="${{ steps.setup-osgeo4w.outputs.root }}"
-
-          echo "=== Checking GDAL files ==="
-          ls -la "$O4W_ROOT/lib" | grep gdal || echo "No GDAL lib found"
-          ls -la "$O4W_ROOT/include" | grep gdal || echo "No GDAL headers found"
-          ls -la "$O4W_ROOT/lib/pkgconfig" | grep gdal || echo "No gdal.pc found"
-
-          # Vérifier avec pkg-config
           export PKG_CONFIG_PATH="$O4W_ROOT/lib/pkgconfig"
-          pkg-config --modversion gdal || echo "pkg-config cannot find GDAL"
-
-          # Vérifier gdalinfo
           export PATH="$O4W_ROOT/bin:$PATH"
+
+          echo "=== Testing pkg-config ==="
+          pkg-config --version || echo "pkg-config not found"
+
+          echo "=== Listing .pc files ==="
+          ls -la "$O4W_ROOT/lib/pkgconfig" || echo "No pkgconfig dir"
+
+          echo "=== Testing GDAL detection ==="
+          pkg-config --modversion gdal || echo "GDAL not found via pkg-config"
+          pkg-config --cflags gdal || echo "Cannot get GDAL cflags"
+          pkg-config --libs gdal || echo "Cannot get GDAL libs"
+
+          echo "=== Testing gdalinfo ==="
           gdalinfo --version || echo "gdalinfo not found"
 
       - name: Install maturin
