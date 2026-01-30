@@ -102,9 +102,6 @@ jobs:
         with:
           swap-size-gb: 10
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -143,16 +140,19 @@ jobs:
           echo "GEOS_INCLUDE_DIR=$O4W_ROOT/include" >> $GITHUB_ENV
           echo "GEOS_VERSION=3.12.1" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$O4W_ROOT/lib/pkgconfig" >> $GITHUB_ENV
-          # Prepend Rust, OSGeo4W and Chocolatey bin to PATH
-          echo "PATH=$HOME/.cargo/bin:$O4W_ROOT/bin:/c/ProgramData/chocolatey/bin:$PATH" >> $GITHUB_ENV
+          # Prepend Rust, OSGeo4W and Chocolatey bin to PATH (USERPROFILE for Windows)
+          echo "PATH=/c/ProgramData/chocolatey/bin:$PATH" >> $GITHUB_ENV
           # Help CMake find SQLite3 when proj-sys builds PROJ from source
           echo "SQLite3_ROOT=$O4W_ROOT" >> $GITHUB_ENV
           choco install llvm pkgconfiglite sqlite -y
         env:
           CHOCOLATEY_NO_PROMPT: 1
 
-      - name: Install maturin
-        run: pip install maturin
+      # - name: Install maturin
+      #   run: pip install maturin
+
+      # - name: Install Rust
+      #   uses: dtolnay/rust-toolchain@stable
 
       - name: Set Rust target
         id: target
@@ -173,11 +173,15 @@ jobs:
             fi
           fi
 
+      # - name: Install Rust target
+      #   run: rustup target add ${{ steps.target.outputs.target }}
+
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
           command: build
           target: ${{ steps.target.outputs.target }}
+          rust-toolchain: stable # Ajoutez cette ligne
           args: >
             --release
             --manifest-path pymdurs/Cargo.toml
