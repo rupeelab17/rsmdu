@@ -219,6 +219,11 @@ def main():
                 options=warp_options,
             )
             print(f"✅ Landcover clipped to: {landcover_clip_path}")
+        else:
+            print(
+                "⚠️  landcover.tif missing: run from examples/ first: "
+                "python cosia_from_ign.py"
+            )
     else:
         print("⚠️  Mask shapefile not found, skipping clipping")
 

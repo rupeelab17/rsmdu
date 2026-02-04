@@ -101,12 +101,12 @@ def geodataframe_to_tif_with_metadata(
         column: Column name containing classification values
         resolution: Pixel resolution in meters
     """
-    print("\n📊 Conversion du GeoDataFrame en TIF...")
-    print(f"   Colonne: {column}, Résolution: {resolution} m")
+    print("\n📊 Converting GeoDataFrame to TIF...")
+    print(f"   Column: {column}, Resolution: {resolution} m")
 
     # Validate GeoDataFrame
     if len(gdf) == 0:
-        raise ValueError("Le GeoDataFrame est vide, impossible de créer un raster")
+        raise ValueError("GeoDataFrame is empty, cannot create raster")
 
     bounds = gdf.total_bounds
     print(f"   Bounds: {bounds}")
@@ -118,12 +118,12 @@ def geodataframe_to_tif_with_metadata(
     # Validate dimensions
     if width <= 0 or height <= 0:
         raise ValueError(
-            f"Dimensions invalides: width={width}, height={height}. "
-            f"Bounds: {bounds}, Résolution: {resolution}m. "
-            f"Vérifiez que la résolution n'est pas trop grande par rapport à l'étendue."
+            f"Invalid dimensions: width={width}, height={height}. "
+            f"Bounds: {bounds}, Resolution: {resolution}m. "
+            f"Check that resolution is not too large for the extent."
         )
 
-    print(f"   Dimensions calculées: {width}x{height} pixels")
+    print(f"   Computed dimensions: {width}x{height} pixels")
     transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
 
     # Rasterize
@@ -138,12 +138,12 @@ def geodataframe_to_tif_with_metadata(
     )
 
     # Statistics
-    print("\n=== Statistiques du raster ===")
+    print("\n=== Raster statistics ===")
     print(f"Dimensions: {width}x{height} pixels")
-    print(f"Résolution: {resolution} m/pixel")
-    print(f"Superficie totale: {(width * height * resolution**2) / 10000:.2f} ha")
+    print(f"Resolution: {resolution} m/pixel")
+    print(f"Total area: {(width * height * resolution**2) / 10000:.2f} ha")
 
-    print("\nRépartition des types:")
+    print("\nType distribution:")
     for val in sorted(np.unique(raster)):
         if val != 0:
             count = np.sum(raster == val)
@@ -176,7 +176,7 @@ def geodataframe_to_tif_with_metadata(
             classes=str(UMEP_LABELS),
         )
 
-    print(f"\n✅ Fichier sauvegardé: {output_tif}")
+    print(f"\n✅ File saved: {output_tif}")
 
     return raster
 
@@ -191,8 +191,8 @@ def vectorize_cosia_raster(cosia_tiff_path: str):
     Returns:
         GeoDataFrame with classified polygons
     """
-    print("\n🔍 Vectorisation du raster COSIA...")
-    print(f"   Fichier: {cosia_tiff_path}")
+    print("\n🔍 Vectorizing COSIA raster...")
+    print(f"   File: {cosia_tiff_path}")
 
     # Create RGB to class mapping
     rgb_to_class = {
@@ -230,7 +230,7 @@ def vectorize_cosia_raster(cosia_tiff_path: str):
             rgb_values.append((r, g, b))
 
     gdf = gpd.GeoDataFrame({"rgb": rgb_values, "geometry": geoms}, crs=crs)
-    print(f"   {len(gdf)} polygones créés")
+    print(f"   {len(gdf)} polygons created")
 
     # Match colors to COSIA classes
     def match_color(rgb):
@@ -251,8 +251,8 @@ def vectorize_cosia_raster(cosia_tiff_path: str):
     # Drop RGB column
     gdf = gdf.drop(columns=["rgb"])
 
-    print(f"✅ Vectorisation terminée: {len(gdf)} polygones classifiés")
-    print(f"   Classes trouvées: {gdf['classe'].value_counts().to_dict()}")
+    print(f"✅ Vectorization complete: {len(gdf)} classified polygons")
+    print(f"   Classes found: {gdf['classe'].value_counts().to_dict()}")
 
     return gdf
 
@@ -321,10 +321,10 @@ def main(output_path: Path):
     # Filter valid geometries
     gdf_valid = gdf[gdf.geometry.notna()].copy()
     if len(gdf_valid) == 0:
-        print("⚠️  Aucune géométrie valide, arrêt du traitement")
+        print("⚠️  No valid geometry, stopping processing")
         return
 
-    print(f"📊 {len(gdf_valid)} géométries valides sur {len(gdf)} totales")
+    print(f"📊 {len(gdf_valid)} valid geometries out of {len(gdf)} total")
 
     # Rasterize to UMEP format
     landcover_tif = output_path / "landcover.tif"
