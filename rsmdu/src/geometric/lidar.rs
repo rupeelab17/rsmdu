@@ -773,7 +773,7 @@ impl Lidar {
         let expected_size = head_content_length(client, url);
         if let Some(size) = expected_size {
             println!(
-                "  📦 Expected size: {} bytes ({:.2} MB)",
+                "  Expected size: {} bytes ({:.2} MB)",
                 size,
                 size as f64 / 1_048_576.0
             );
@@ -787,7 +787,7 @@ impl Lidar {
                 Err(e) => {
                     retries -= 1;
                     if retries > 0 {
-                        eprintln!("  ⚠️ Download error (retrying in 2s): {}", e);
+                        eprintln!("  Download error (retrying in 2s): {}", e);
                         std::thread::sleep(std::time::Duration::from_secs(2));
                         continue;
                     }
@@ -815,7 +815,7 @@ impl Lidar {
                         if bytes_read % (10 * 1024 * 1024) < 65536 {
                             if let Some(expected) = expected_size {
                                 println!(
-                                    "  ⏳ Progress: {:.1}%",
+                                    "  Progress: {:.1}%",
                                     (bytes_read as f64 / expected as f64) * 100.0
                                 );
                             }
@@ -824,7 +824,7 @@ impl Lidar {
                     Err(e) => {
                         retries -= 1;
                         if retries > 0 {
-                            eprintln!("  ⚠️ Read error (retrying): {}", e);
+                            eprintln!("  Read error (retrying): {}", e);
                             std::thread::sleep(std::time::Duration::from_secs(2));
                             break;
                         }
@@ -840,7 +840,7 @@ impl Lidar {
                         retries -= 1;
                         if retries > 0 {
                             eprintln!(
-                                "  ⚠️ Incomplete download: got {} bytes, expected {} (retrying)",
+                                "  Incomplete download: got {} bytes, expected {} (retrying)",
                                 data.len(),
                                 expected
                             );
@@ -861,7 +861,7 @@ impl Lidar {
             if retries == 0 {
                 return Err(anyhow::anyhow!("Empty response after retries"));
             }
-            eprintln!("  ⚠️ Empty response (retrying)");
+            eprintln!("  Empty response (retrying)");
             std::thread::sleep(std::time::Duration::from_secs(2));
         };
 
@@ -873,14 +873,14 @@ impl Lidar {
         }
 
         println!(
-            "  ✓ Downloaded {} bytes ({:.2} MB)",
+            "  Downloaded {} bytes ({:.2} MB)",
             data.len(),
             data.len() as f64 / 1_048_576.0
         );
 
         // Cache the file
         std::fs::write(cache_path, &data).context("Failed to write cache file")?;
-        println!("  💾 Cached to: {:?}", cache_path);
+        println!("  Cached to: {:?}", cache_path);
 
         Ok(data)
     }
@@ -923,7 +923,7 @@ impl Lidar {
             .map_err(|e| anyhow::anyhow!("Failed to create LAZ reader: {}", e))?;
 
         let point_count = reader.header().number_of_points();
-        println!("  📊 Header declares {} points", point_count);
+        println!("  Header declares {} points", point_count);
 
         // Read all points first
         let mut raw_points: Vec<las::Point> = Vec::with_capacity(point_count as usize);
@@ -939,10 +939,10 @@ impl Lidar {
         }
 
         if errors > 0 {
-            eprintln!("  ⚠️ {} point read errors", errors);
+            eprintln!("  {} point read errors", errors);
         }
 
-        println!("  📊 Read {} points from LAZ", raw_points.len());
+        println!("  Read {} points from LAZ", raw_points.len());
 
         // Convert to LidarPoint first (needed for spatial indexing)
         #[cfg(feature = "rayon")]
@@ -974,10 +974,7 @@ impl Lidar {
             all_points
         };
 
-        println!(
-            "  ✓ Loaded {} points after spatial filter",
-            file_points.len()
-        );
+        println!("  Loaded {} points after spatial filter", file_points.len());
 
         Ok(file_points)
     }
@@ -1002,7 +999,7 @@ impl Lidar {
                 .collect();
         }
 
-        println!("  🗂️ Building spatial index for {} points...", point_count);
+        println!("  Building spatial index for {} points...", point_count);
         let start = std::time::Instant::now();
 
         // Choose index type based on expected selectivity
@@ -1043,7 +1040,7 @@ impl Lidar {
                 .max(10.0); // Minimum 10m cells
 
             let grid_index = SpatialGridIndex::build_from_points(points, cell_size);
-            println!("  📊 {}", grid_index.stats());
+            println!("  {}", grid_index.stats());
 
             let candidate_indices = grid_index.query_bbox(x_min, y_min, x_max, y_max);
             println!(
@@ -1066,7 +1063,7 @@ impl Lidar {
         } else {
             // Quadtree - better for very selective queries on large datasets
             let quadtree = QuadtreeSpatialIndex::build(points);
-            println!("  📊 {}", quadtree.stats());
+            println!("  {}", quadtree.stats());
 
             let candidate_indices = quadtree.query_bbox(x_min, y_min, x_max, y_max);
             println!(
@@ -1090,7 +1087,7 @@ impl Lidar {
 
         let elapsed = start.elapsed();
         println!(
-            "  ⏱️ Spatial indexing and query took {:.2}s",
+            "  Spatial indexing and query took {:.2}s",
             elapsed.as_secs_f64()
         );
 
@@ -1132,7 +1129,7 @@ impl Lidar {
 
         let elapsed = start.elapsed();
         println!(
-            "  ⏱️ Parallel spatial filtering took {:.2}s",
+            "  Parallel spatial filtering took {:.2}s",
             elapsed.as_secs_f64()
         );
 
@@ -1156,11 +1153,11 @@ impl Lidar {
             // Verify cached file integrity
             match Self::verify_cached_file(&cache_path) {
                 Ok(true) => {
-                    println!("📂 Reading COPC from cache: {:?}", cache_path);
+                    println!("Reading COPC from cache: {:?}", cache_path);
                     std::fs::read(&cache_path).context("Failed to read cached file")?
                 }
                 Ok(false) | Err(_) => {
-                    eprintln!("  ⚠️ Cached file appears corrupted, re-downloading...");
+                    eprintln!("  Cached file appears corrupted, re-downloading...");
                     let _ = std::fs::remove_file(&cache_path);
 
                     let client = reqwest::blocking::Client::builder()
@@ -1185,7 +1182,7 @@ impl Lidar {
         };
 
         println!(
-            "  📦 File size: {} bytes ({:.2} MB)",
+            "  File size: {} bytes ({:.2} MB)",
             bytes.len(),
             bytes.len() as f64 / 1_048_576.0
         );
@@ -1196,7 +1193,7 @@ impl Lidar {
             Ok(mut entry_reader) => {
                 // Check for COPC info VLR
                 if entry_reader.header().copc_info_vlr().is_none() {
-                    println!("  ⚠️ File missing COPC VLR, falling back to standard LAZ reader");
+                    println!("  File missing COPC VLR, falling back to standard LAZ reader");
                     return Self::read_as_standard_laz(bytes, filter_bbox);
                 }
 
@@ -1204,16 +1201,18 @@ impl Lidar {
                 let entries = match entry_reader.hierarchy_entries() {
                     Some(e) => e,
                     None => {
-                        println!("  ⚠️ Could not read COPC hierarchy, falling back to standard LAZ reader");
+                        println!(
+                            "  Could not read COPC hierarchy, falling back to standard LAZ reader"
+                        );
                         return Self::read_as_standard_laz(bytes, filter_bbox);
                     }
                 };
 
-                println!("  📊 COPC hierarchy: {} entries", entries.len());
+                println!("  COPC hierarchy: {} entries", entries.len());
 
                 if let Some((x_min, y_min, x_max, y_max)) = filter_bbox {
                     println!(
-                        "  🎯 Spatial filter: [{:.2}, {:.2}] -> [{:.2}, {:.2}]",
+                        "  Spatial filter: [{:.2}, {:.2}] -> [{:.2}, {:.2}]",
                         x_min, y_min, x_max, y_max
                     );
                 }
@@ -1228,7 +1227,7 @@ impl Lidar {
                     0.0
                 };
 
-                println!("  📊 COPC Results:");
+                println!("  COPC Results:");
                 println!("     - Entries processed: {}", result.entries_processed);
                 println!("     - Successfully read: {}", result.entries_success);
                 if result.entries_failed > 0 {
@@ -1243,13 +1242,13 @@ impl Lidar {
                 // If more than 50% failures, fall back to standard LAZ
                 if failure_rate > 0.5 {
                     eprintln!(
-                        "  ⚠️ High failure rate ({:.1}%), falling back to standard LAZ reader",
+                        "  High failure rate ({:.1}%), falling back to standard LAZ reader",
                         failure_rate * 100.0
                     );
 
                     // Delete potentially corrupted cache
                     if cache_path.exists() {
-                        eprintln!("  🗑️ Removing potentially corrupted cache file");
+                        eprintln!("  Removing potentially corrupted cache file");
                         let _ = std::fs::remove_file(&cache_path);
                     }
 
@@ -1265,13 +1264,13 @@ impl Lidar {
 
                 // If we got no points but had successful reads, the bbox might be outside the data
                 if result.points.is_empty() && result.entries_success > 0 {
-                    println!("  ℹ️ No points found in bbox (data may be outside the query area)");
+                    println!("  No points found in bbox (data may be outside the query area)");
                 }
 
                 Ok(result.points)
             }
             Err(e) => {
-                eprintln!("  ⚠️ COPC reader failed: {}", e);
+                eprintln!("  COPC reader failed: {}", e);
                 eprintln!("  📖 Falling back to standard LAZ reader");
                 Self::read_as_standard_laz(bytes, filter_bbox)
             }
@@ -1325,7 +1324,7 @@ impl Lidar {
             // Progress every 500 entries
             if entries_processed % 500 == 0 {
                 println!(
-                    "  ⏳ Progress: {}/{} entries, {} points",
+                    "  Progress: {}/{} entries, {} points",
                     entries_processed,
                     entries.len(),
                     all_points.len()
@@ -1507,10 +1506,10 @@ impl Lidar {
             // Verify cached file first
             match Self::verify_cached_file(&cache_path) {
                 Ok(true) => {
-                    println!("📂 Reading LAZ from cache: {:?}", cache_path);
+                    println!("Reading LAZ from cache: {:?}", cache_path);
                 }
                 Ok(false) | Err(_) => {
-                    eprintln!("  ⚠️ Cached file appears corrupted, removing...");
+                    eprintln!("  Cached file appears corrupted, removing...");
                     let _ = std::fs::remove_file(&cache_path);
                     // Fall through to download
                 }
@@ -1561,7 +1560,7 @@ impl Lidar {
                         return Err(anyhow::anyhow!("Downloaded file is not a valid LAS/LAZ"));
                     }
                     std::fs::write(&cache_path, &data).context("Failed to write LAZ cache")?;
-                    println!("  💾 Cached to: {:?}", cache_path);
+                    println!("  Cached to: {:?}", cache_path);
                     data
                 }
                 Err(_) => {
@@ -1574,7 +1573,7 @@ impl Lidar {
         };
 
         let point_count = reader.header().number_of_points() as usize;
-        println!("  📊 Header declares {} points", point_count);
+        println!("  Header declares {} points", point_count);
 
         let mut raw_points: Vec<las::Point> = Vec::with_capacity(point_count);
         for point_result in reader.points() {
@@ -1583,7 +1582,7 @@ impl Lidar {
             }
         }
 
-        println!("  📊 Read {} points", raw_points.len());
+        println!("  Read {} points", raw_points.len());
 
         // Convert to LidarPoint
         #[cfg(feature = "rayon")]
@@ -1628,10 +1627,7 @@ impl Lidar {
             all_points
         };
 
-        println!(
-            "  ✓ Loaded {} points after spatial filter",
-            file_points.len()
-        );
+        println!("  Loaded {} points after spatial filter", file_points.len());
 
         Ok(file_points)
     }
@@ -1645,7 +1641,7 @@ impl Lidar {
             .get_bbox()
             .context("Bounding box must be set before getting LiDAR points")?;
 
-        println!("📦 Bounding box set");
+        println!("Bounding box set");
 
         // Transform bbox from EPSG:4326 to EPSG:2154
         // Python: transformer = Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True)
@@ -1706,7 +1702,7 @@ impl Lidar {
         }
 
         println!("📍 Found {} LAZ file(s)", list_path_laz.len());
-        println!("🗺️  CRS: {}", self.geo_core.get_epsg());
+        println!("CRS: {}", self.geo_core.get_epsg());
 
         // Store the URLs
         self.list_path_laz = Some(list_path_laz.clone());
@@ -1764,7 +1760,7 @@ impl Lidar {
             if all_points.is_empty() {
                 anyhow::bail!("No LiDAR points were loaded from any file");
             }
-            println!("✅ Total points loaded: {}", all_points.len());
+            println!("Total points loaded: {}", all_points.len());
             return Ok(all_points);
         }
 
@@ -1784,16 +1780,11 @@ impl Lidar {
             };
 
             for (idx, url) in laz_urls.iter().enumerate() {
-                println!(
-                    "\n📁 Processing file {}/{}: {}",
-                    idx + 1,
-                    laz_urls.len(),
-                    url
-                );
+                println!("\nProcessing file {}/{}: {}", idx + 1, laz_urls.len(), url);
 
                 match self.load_single_point_file(url, &cache_dir, filter_bbox) {
                     Ok(points) => {
-                        println!("  ✓ Loaded {} points", points.len());
+                        println!("  Loaded {} points", points.len());
                         all_points.extend(points);
                     }
                     Err(e) => {
@@ -1818,7 +1809,7 @@ impl Lidar {
                 anyhow::bail!("No LiDAR points were loaded from any file");
             }
 
-            println!("\n✅ Total points loaded: {}", all_points.len());
+            println!("\nTotal points loaded: {}", all_points.len());
             Ok(all_points)
         }
     }
