@@ -236,7 +236,7 @@ def main():
     # ========================================================================
     # Step 6: Run SOLWEIG for thermal comfort analysis
     # ========================================================================
-    if dsm_path and os.path.exists(dsm_path):
+    if dsm_path and os.path.exists(dsm_path) and lc_path and os.path.exists(lc_path):
         print("\n" + "=" * 60)
         print("Step 6: Running SOLWEIG for thermal comfort analysis...")
         print("=" * 60)
