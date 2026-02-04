@@ -10,6 +10,8 @@ documentation = "https://github.com/rupeelab17/rsmdu#readme"
 
 [features]
 default = []
+# COPC (Cloud Optimized Point Cloud) support via las::copc::CopcEntryReader
+lidar-copc = ["rsmdu/lidar-copc"]
 
 [lib]
 name = "pymdurs"

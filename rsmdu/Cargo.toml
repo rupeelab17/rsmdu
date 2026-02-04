@@ -9,11 +9,13 @@ homepage = "https://github.com/rupeelab17/rsmdu"
 documentation = "https://github.com/rupeelab17/rsmdu#readme"
 
 [features]
-default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif", "rayon"]
+default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif", "rayon", "laz-memmap"]
 wasm = []
 umep = []
 # Use memory-mapped I/O for large cached LAZ files (>50 MiB) to reduce RAM usage
 laz-memmap = ["memmap2"]
+# COPC (Cloud Optimized Point Cloud) support via las::copc::CopcEntryReader
+lidar-copc = []
 
 [dependencies]
 # GeoRust ecosystem
@@ -53,6 +55,7 @@ rayon = { version = "1.10", optional = true }
 
 # LiDAR processing
 las = { version = "0.9", features = ["laz-parallel"], optional = true }
+# "copc" feature enabled via lidar-copc for CopcEntryReader
 laz = { version = "0.10", optional = true }
 memmap2 = { version = "0.9", optional = true }
 
