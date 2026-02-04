@@ -359,7 +359,7 @@ pub struct QuadtreeSpatialIndex {
 
 impl QuadtreeSpatialIndex {
     /// Build a quadtree index from points
-    pub fn build(points: &[LidarPoint]) -> Self {
+    pub(crate) fn build(points: &[LidarPoint]) -> Self {
         // Find bounds
         let mut min_x = f64::INFINITY;
         let mut min_y = f64::INFINITY;
@@ -1366,6 +1366,7 @@ impl Lidar {
 
     /// Download full LAZ file with a single GET (fallback when Range is not supported).
     #[cfg(feature = "reqwest")]
+    #[allow(dead_code)]
     fn download_laz_full_get(client: &reqwest::blocking::Client, url: &str) -> Result<Vec<u8>> {
         use std::io::Read;
         let mut retries = 3;

@@ -9,7 +9,7 @@ homepage = "https://github.com/rupeelab17/rsmdu"
 documentation = "https://github.com/rupeelab17/rsmdu#readme"
 
 [features]
-default = []
+default = ["lidar-copc"]
 # COPC (Cloud Optimized Point Cloud) support via las::copc::CopcEntryReader
 lidar-copc = ["rsmdu/lidar-copc"]
 
@@ -22,7 +22,7 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.27.2", features = ["extension-module", "abi3-py38"] }
 
 # Core rsmdu library
-rsmdu = { path = "../rsmdu", default-features = true, features = ["rayon"] }
+rsmdu = { path = "../rsmdu", default-features = true, features = ["rayon", "lidar-copc"] }
 
 # GeoJSON for bindings
 geojson = "0.24"
