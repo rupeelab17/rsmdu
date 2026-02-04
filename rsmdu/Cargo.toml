@@ -9,9 +9,11 @@ homepage = "https://github.com/rupeelab17/rsmdu"
 documentation = "https://github.com/rupeelab17/rsmdu#readme"
 
 [features]
-default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif"]
+default = ["proj", "umep", "gdal", "reqwest", "csv", "encoding_rs", "polars", "las", "zip", "tempfile", "geos", "chrono", "quick-xml", "indicatif", "rayon"]
 wasm = []
 umep = []
+# Use memory-mapped I/O for large cached LAZ files (>50 MiB) to reduce RAM usage
+laz-memmap = ["memmap2"]
 
 [dependencies]
 # GeoRust ecosystem
@@ -47,10 +49,12 @@ urlencoding = "2.1"
 zip = { version = "0.6", optional = true }
 tempfile = { version = "3.8", optional = true }
 indicatif = { version = "0.17", optional = true }
+rayon = { version = "1.10", optional = true }
 
 # LiDAR processing
 las = { version = "0.9", features = ["laz-parallel"], optional = true }
 laz = { version = "0.10", optional = true }
+memmap2 = { version = "0.9", optional = true }
 
 # UMEP integration (optional - only when umep feature is enabled)
 # Note: umep_rust may not be available as a crate, comment out if not needed

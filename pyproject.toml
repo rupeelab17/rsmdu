@@ -28,7 +28,7 @@ dependencies = [
     "rasterio>=1.4.3",
     "umep>=0.0.1a18",
     "umepr @ git+https://github.com/UMEP-dev/solweig.git@main",
-    "solweig @ git+https://github.com/UMEP-dev/solweig.git@dev"
+    "solweig"
 ]
 
 [project.optional-dependencies]

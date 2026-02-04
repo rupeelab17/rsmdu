@@ -606,12 +606,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gdal"
-version = "3.12.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/99/e3/5be26f3450e9d49c42a306f3f668e14661ff93149df246c325c9be8279d3/gdal-3.12.1.tar.gz", hash = "sha256:c91644f7789d73c89f8baafa4fe61cedf5182081314862c05763223ecc39070b", size = 899230, upload-time = "2025-12-18T14:30:55.206Z" }
-
-[[package]]
 name = "genai-prices"
 version = "0.0.52"
 source = { registry = "https://pypi.org/simple" }
@@ -2318,7 +2312,6 @@ name = "pymdurs"
 version = "0.1.1"
 source = { editable = "." }
 dependencies = [
-    { name = "gdal" },
     { name = "geopandas" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -2342,7 +2335,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "gdal", specifier = ">=3.12.1" },
     { name = "geopandas", specifier = ">=1.0.1" },
     { name = "numpy", specifier = ">=2.0.2" },
     { name = "pandas", specifier = ">=2.0.0" },
