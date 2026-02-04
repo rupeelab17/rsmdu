@@ -7,11 +7,11 @@ This example demonstrates how to:
 3. Calculate Sky View Factor (SVF) using umepr
 4. Optionally run SOLWEIG for thermal comfort analysis
 
-Inspired by: https://github.com/UMEP-dev/umep-rust/blob/main/demos/athens-demo.py
+Inspired by: https://github.com/UMEP-dev/solweig/blob/dev/demos/athens-demo.py
 
 Required dependencies (install separately):
-    pip install geopandas rasterio pyproj
-    pip install "umepr @ git+https://github.com/UMEP-dev/umep-rust.git"
+    pip install geopandas rasterio pyproj pillow
+    pip install "umepr @ git+https://github.com/UMEP-dev/solweig.git@dev"
     # umep (optional) for additional SOLWEIG features
 
 Note: On Apple Silicon (ARM64), umepr may require the x86_64 target:
@@ -22,14 +22,47 @@ import os
 from pathlib import Path
 
 import geopandas as gpd
-import numpy as np
-import rasterio
 import solweig
 from osgeo import gdal, gdalconst
-from rasterio.features import rasterize
-from shapely.geometry import box, shape
+from PIL import Image
+from shapely.geometry import box
 
 import pymdurs
+
+
+def preview_pngs_to_gif(
+    folder: str | Path,
+    pattern: str = "shadow_*.preview.png",
+    out_path: str | Path | None = None,
+    duration_ms: int = 500,
+    loop: int = 0,
+) -> Path:
+    """Crée un GIF animé à partir des PNG d'aperçu ombre, tmrt, utci, pet (SOLWEIG).
+
+    Args:
+        folder: Dossier contenant les fichiers shadow_*.preview.png
+        pattern: Glob pour les PNG (défaut: shadow_*.preview.png)
+        out_path: Fichier GIF de sortie (défaut: folder / "shadow_preview.gif")
+        duration_ms: Durée par frame en ms
+        loop: 0 = boucle infinie
+
+    Returns:
+        Chemin du GIF créé.
+    """
+    folder = Path(folder)
+    out_path = Path(out_path) if out_path else folder / "shadow_preview.gif"
+    paths = sorted(folder.glob(pattern))
+    if not paths:
+        raise FileNotFoundError(f"Aucun fichier trouvé: {folder / pattern}")
+    frames = [Image.open(p).convert("P", palette=Image.ADAPTIVE) for p in paths]
+    frames[0].save(
+        out_path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration_ms,
+        loop=loop,
+    )
+    return out_path
 
 
 def main():
@@ -186,6 +219,11 @@ def main():
                 options=warp_options,
             )
             print(f"✅ Landcover clipped to: {landcover_clip_path}")
+        else:
+            print(
+                "⚠️  landcover.tif absent : exécuter d'abord depuis examples/ : "
+                "python cosia_from_ign.py"
+            )
     else:
         print("⚠️  Mask shapefile not found, skipping clipping")
 
@@ -220,8 +258,8 @@ def main():
         # Load weather from EPW file
         weather_list = solweig.Weather.from_epw(
             "la_rochelle_2025.epw",
-            start="2025-07-01",
-            end="2025-07-03",
+            start="2025-07-01 07:00",
+            end="2025-07-01 19:00",
         )
         physics = solweig.load_physics("parametersforsolweig.json")
         # Calculate timeseries
@@ -302,3 +340,24 @@ def main():
 
 if __name__ == "__main__":
     main()
+    gif_path = preview_pngs_to_gif(
+        Path("output/umep_workflow"),
+        pattern="shadow_*.preview.png",
+        out_path="output/umep_workflow/shadow_preview.gif",
+        duration_ms=500,
+    )
+    print(f"✅ GIF créé: {gif_path}")
+    gif_path = preview_pngs_to_gif(
+        Path("output/umep_workflow"),
+        pattern="tmrt_*.preview.png",
+        out_path="output/umep_workflow/tmrt_preview.gif",
+        duration_ms=500,
+    )
+    print(f"✅ GIF créé: {gif_path}")
+    gif_path = preview_pngs_to_gif(
+        Path("output/umep_workflow/output_utci"),
+        pattern="utci_*.preview.png",
+        out_path="output/umep_workflow/utci_preview.gif",
+        duration_ms=500,
+    )
+    print(f"✅ GIF créé: {gif_path}")
