@@ -22,6 +22,8 @@ import os
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
+import rasterio
 import solweig
 from osgeo import gdal, gdalconst
 from PIL import Image
@@ -232,6 +234,43 @@ def main():
     cdsm_path = Path(output_folder_str) / "CDSM_clip.tif"
     dem_tiff_path = Path(output_folder_str) / "DEM_clip.tif"
     lc_path = Path(output_folder_str) / "landcover_clip.tif"
+
+    if dem_clip_path.exists() and dsm_clip_path.exists():
+        print("\n" + "-" * 40)
+        print("Step 3a: Filling DSM NoData with DEM values...")
+        print("-" * 40)
+
+        with rasterio.open(dem_clip_path) as dem_src:
+            dem_data = dem_src.read(1)
+            dem_nodata = dem_src.nodata or -99999.0
+
+        with rasterio.open(dsm_clip_path) as dsm_src:
+            dsm_data = dsm_src.read(1)
+            dsm_profile = dsm_src.profile.copy()
+            dsm_nodata = dsm_src.nodata or 0
+
+        # Find DSM NoData pixels
+        dsm_invalid = (dsm_data == dsm_nodata) | np.isnan(dsm_data) | (dsm_data == 0)
+        dem_valid = (dem_data != dem_nodata) & ~np.isnan(dem_data)
+
+        # Fill DSM NoData with DEM values where DEM is valid
+        fill_mask = dsm_invalid & dem_valid
+        filled_count = np.sum(fill_mask)
+
+        if filled_count > 0:
+            dsm_data[fill_mask] = dem_data[fill_mask]
+
+            # Update nodata value
+            dsm_profile.update(nodata=-9999.0)
+
+            # Save filled DSM
+            with rasterio.open(dsm_clip_path, "w", **dsm_profile) as dst:
+                dst.write(dsm_data, 1)
+
+            print(f"✅ Filled {filled_count} DSM NoData pixels with DEM values")
+            print(f"   ({filled_count / dsm_data.size * 100:.2f}% of total)")
+        else:
+            print("✅ No DSM NoData pixels to fill")
 
     # ========================================================================
     # Step 6: Run SOLWEIG for thermal comfort analysis
