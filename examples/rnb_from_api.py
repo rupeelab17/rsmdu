@@ -1,5 +1,5 @@
 """
-Example: Download RNB (Référentiel National des Bâtiments) data from RNB API using pymdurs
+Example: Download RNB (French National Building Reference) data from RNB API using pymdurs
 
 This example demonstrates how to:
 1. Create a Rnb instance
@@ -13,7 +13,7 @@ import pymdurs
 
 
 def main():
-    print("🏢 Loading RNB (Référentiel National des Bâtiments) from RNB API...")
+    print("🏢 Loading RNB (French National Building Reference) from RNB API...")
 
     # Create Rnb instance
     rnb = pymdurs.geometric.Rnb(output_path="./output")
