@@ -2,35 +2,35 @@ use anyhow::Result;
 use rsmdu::geometric::building::BuildingCollection;
 
 fn main() -> Result<()> {
-    println!("=== Exemple d'utilisation de BuildingCollection ===\n");
+    println!("=== BuildingCollection usage example ===\n");
 
-    // Exemple 1: Créer une collection vide et ajouter des bâtiments manuellement
-    println!("1. Création d'une collection vide et ajout de bâtiments:");
+    // Example 1: Create empty collection and add buildings manually
+    println!("1. Creating empty collection and adding buildings:");
     example_manual_buildings()?;
 
-    // Exemple 2: Charger depuis GeoJSON
-    println!("\n2. Chargement depuis GeoJSON:");
+    // Example 2: Load from GeoJSON
+    println!("\n2. Loading from GeoJSON:");
     example_from_geojson()?;
 
-    // Exemple 3: Traitement des hauteurs
-    println!("\n3. Traitement des hauteurs:");
+    // Example 3: Height processing
+    println!("\n3. Height processing:");
     example_process_heights()?;
 
-    // Exemple 4: Conversion vers Polars DataFrame
-    println!("\n4. Conversion vers Polars DataFrame:");
+    // Example 4: Conversion to Polars DataFrame
+    println!("\n4. Conversion to Polars DataFrame:");
     example_to_polars()?;
 
     Ok(())
 }
 
-/// Exemple 1: Créer des bâtiments manuellement
+/// Example 1: Create buildings manually
 fn example_manual_buildings() -> Result<()> {
     use geo::polygon;
     use rsmdu::geometric::building::Building;
 
     let mut collection = BuildingCollection::new_simple(None);
 
-    // Créer un premier bâtiment avec hauteur
+    // Create first building with height
     let poly1 = polygon![
         (x: 0.0, y: 0.0),
         (x: 10.0, y: 0.0),
@@ -41,7 +41,7 @@ fn example_manual_buildings() -> Result<()> {
     let building1 = Building::with_height(poly1, 15.0);
     collection.add_building(building1);
 
-    // Créer un deuxième bâtiment sans hauteur mais avec nombre d'étages
+    // Create second building without height but with number of storeys
     let poly2 = polygon![
         (x: 15.0, y: 0.0),
         (x: 25.0, y: 0.0),
@@ -53,15 +53,15 @@ fn example_manual_buildings() -> Result<()> {
     building2.set_nombre_d_etages(5.0);
     collection.add_building(building2);
 
-    println!("  - Nombre de bâtiments: {}", collection.len());
-    println!("  - Hauteur moyenne du quartier: {:.2} m", collection.calculate_mean_height());
+    println!("  - Number of buildings: {}", collection.len());
+    println!("  - Mean neighbourhood height: {:.2} m", collection.calculate_mean_height());
 
     Ok(())
 }
 
-/// Exemple 2: Charger depuis GeoJSON
+/// Example 2: Load from GeoJSON
 fn example_from_geojson() -> Result<()> {
-    // Exemple de GeoJSON FeatureCollection
+    // Example GeoJSON FeatureCollection
     let geojson_data = r#"
     {
         "type": "FeatureCollection",
@@ -98,10 +98,10 @@ fn example_from_geojson() -> Result<()> {
         None, // set_crs
     )?;
 
-    println!("  - Nombre de bâtiments chargés: {}", collection.len());
+    println!("  - Number of buildings loaded: {}", collection.len());
     
     for (idx, building) in collection.buildings().iter().enumerate() {
-        println!("  - Bâtiment {}: hauteur={:?}, area={:.2} m²", 
+        println!("  - Building {}: height={:?}, area={:.2} m²", 
                  idx + 1, 
                  building.height, 
                  building.area);
@@ -110,7 +110,7 @@ fn example_from_geojson() -> Result<()> {
     Ok(())
 }
 
-/// Exemple 3: Traitement des hauteurs
+/// Example 3: Height processing
 fn example_process_heights() -> Result<()> {
     use geo::polygon;
     use rsmdu::geometric::building::Building;
@@ -118,7 +118,7 @@ fn example_process_heights() -> Result<()> {
     let mut collection = BuildingCollection::new_simple(None);
     collection.set_default_storey_height(3.0);
 
-    // Bâtiment 1: avec hauteur
+    // Building 1: with height
     let poly1 = polygon![
         (x: 0.0, y: 0.0),
         (x: 10.0, y: 0.0),
@@ -129,7 +129,7 @@ fn example_process_heights() -> Result<()> {
     let building1 = Building::with_height(poly1, 12.0);
     collection.add_building(building1);
 
-    // Bâtiment 2: sans hauteur mais avec nombre d'étages
+    // Building 2: without height but with number of storeys
     let poly2 = polygon![
         (x: 15.0, y: 0.0),
         (x: 25.0, y: 0.0),
@@ -141,7 +141,7 @@ fn example_process_heights() -> Result<()> {
     building2.set_nombre_d_etages(5.0);
     collection.add_building(building2);
 
-    // Bâtiment 3: sans hauteur ni étages (utilisera la hauteur moyenne)
+    // Building 3: without height or storeys (will use mean height)
     let poly3 = polygon![
         (x: 30.0, y: 0.0),
         (x: 40.0, y: 0.0),
@@ -152,33 +152,33 @@ fn example_process_heights() -> Result<()> {
     let building3 = Building::new(poly3);
     collection.add_building(building3);
 
-    println!("  - Avant traitement:");
-    println!("    * Bâtiment 1: hauteur={:?}", collection.buildings()[0].height);
-    println!("    * Bâtiment 2: hauteur={:?}, étages={:?}", 
+    println!("  - Before processing:");
+    println!("    * Building 1: height={:?}", collection.buildings()[0].height);
+    println!("    * Building 2: height={:?}, storeys={:?}", 
              collection.buildings()[1].height, 
              collection.buildings()[1].nombre_d_etages);
-    println!("    * Bâtiment 3: hauteur={:?}", collection.buildings()[2].height);
-    println!("    * Hauteur moyenne: {:.2} m", collection.calculate_mean_height());
+    println!("    * Building 3: height={:?}", collection.buildings()[2].height);
+    println!("    * Mean height: {:.2} m", collection.calculate_mean_height());
 
-    // Traiter les hauteurs
+    // Process heights
     collection.process_heights();
 
-    println!("  - Après traitement:");
+    println!("  - After processing:");
     for (idx, building) in collection.buildings().iter().enumerate() {
-        println!("    * Bâtiment {}: hauteur={:?} m", idx + 1, building.height);
+        println!("    * Building {}: height={:?} m", idx + 1, building.height);
     }
 
     Ok(())
 }
 
-/// Exemple 4: Conversion vers Polars DataFrame
+/// Example 4: Conversion to Polars DataFrame
 fn example_to_polars() -> Result<()> {
     use geo::polygon;
     use rsmdu::geometric::building::Building;
 
     let mut collection = BuildingCollection::new_simple(None);
 
-    // Ajouter quelques bâtiments
+    // Add a few buildings
     for i in 0..3 {
         let x = (i * 15) as f64;
         let poly = polygon![
@@ -192,21 +192,21 @@ fn example_to_polars() -> Result<()> {
         collection.add_building(building);
     }
 
-    // Convertir en DataFrame Polars
+    // Convert to Polars DataFrame
     let df = collection.to_polars_df()?;
 
-    println!("  - DataFrame créé avec {} lignes", df.height());
-    println!("  - Colonnes: {:?}", df.get_column_names());
+    println!("  - DataFrame created with {} rows", df.height());
+    println!("  - Columns: {:?}", df.get_column_names());
     
-    // Afficher quelques statistiques
+    // Display some statistics
     if let Ok(hauteur_col) = df.column("hauteur") {
-        println!("  - Colonne 'hauteur':");
+        println!("  - Column 'hauteur':");
         println!("    * Type: {:?}", hauteur_col.dtype());
-        println!("    * Nombre de valeurs: {}", hauteur_col.len());
+        println!("    * Number of values: {}", hauteur_col.len());
     }
 
-    // Afficher le DataFrame
-    println!("  - Aperçu du DataFrame:");
+    // Display DataFrame
+    println!("  - DataFrame preview:");
     println!("{}", df);
 
     Ok(())

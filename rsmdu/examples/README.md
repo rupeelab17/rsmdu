@@ -1,144 +1,144 @@
-# Exemples d'utilisation de rsmdu
+# rsmdu usage examples
 
-Ce dossier contient des exemples d'utilisation de la bibliothèque rsmdu, organisés par type de source de données.
+This folder contains usage examples for the rsmdu library, organized by data source type.
 
-## Exemples Building
+## Building examples
 
 ### 1. `building_manual.rs`
 
-Exemple minimal montrant comment créer manuellement un bâtiment et l'ajouter à une collection.
+Minimal example showing how to manually create a building and add it to a collection.
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example building_manual
 ```
 
-**Ce que fait cet exemple:**
+**What this example does:**
 
-- Crée un bâtiment avec une géométrie polygonale
-- Ajoute le bâtiment à une collection
-- Traite les hauteurs
-- Convertit en DataFrame Polars
+- Creates a building with a polygon geometry
+- Adds the building to a collection
+- Processes heights
+- Converts to Polars DataFrame
 
 ### 2. `building_from_geojson.rs`
 
-Exemple complet montrant comment charger des bâtiments depuis un fichier GeoJSON, traiter les hauteurs et convertir en DataFrame Polars.
+Complete example showing how to load buildings from a GeoJSON string, process heights, and convert to Polars DataFrame.
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example building_from_geojson
 ```
 
-**Ce que fait cet exemple:**
+**What this example does:**
 
-- Charge des bâtiments depuis une chaîne GeoJSON
-- Affiche les propriétés de chaque bâtiment
-- Traite les hauteurs manquantes (utilise les étages ou la hauteur moyenne)
-- Convertit la collection en DataFrame Polars
+- Loads buildings from a GeoJSON string
+- Displays each building's properties
+- Processes missing heights (uses storeys or mean height)
+- Converts the collection to Polars DataFrame
 
 ### 3. `building_from_ign.rs`
 
-Exemple utilisant la méthode `run()` pour charger des bâtiments depuis l'API IGN (style Python).
+Example using the `run()` method to load buildings from the IGN API (Python style).
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example building_from_ign
 ```
 
-**Ce que fait cet exemple:**
+**What this example does:**
 
-- Crée un `BuildingCollection` (Python: `Building(output_path='./')`)
-- Définit une bounding box (Python: `buildings.Bbox = [...]`)
-- Exécute `run()` pour télécharger et traiter (Python: `buildings = buildings.run()`)
-- Convertit en DataFrame Polars
+- Creates a `BuildingCollection` (Python: `Building(output_path='./')`)
+- Sets a bounding box (Python: `buildings.Bbox = [...]`)
+- Runs `run()` to download and process (Python: `buildings = buildings.run()`)
+- Converts to Polars DataFrame
 
 ### 4. `building_from_ign_api.rs`
 
-Exemple détaillé montrant comment charger des bâtiments depuis l'API IGN française.
+Detailed example showing how to load buildings from the French IGN API.
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example building_from_ign_api
 ```
 
-**Ce que fait cet exemple:**
+**What this example does:**
 
-- Définit une bounding box (zone géographique)
-- Charge les bâtiments depuis l'API IGN via WFS
-- Affiche les statistiques des bâtiments chargés
-- Traite les hauteurs manquantes
-- Convertit en DataFrame Polars
-- Calcule des statistiques (surface totale, bâtiments par hauteur, etc.)
+- Sets a bounding box (geographic area)
+- Loads buildings from IGN API via WFS
+- Displays loaded building statistics
+- Processes missing heights
+- Converts to Polars DataFrame
+- Computes statistics (total area, buildings by height, etc.)
 
 **Note:**
 
-- Cet exemple nécessite une connexion internet
-- L'API IGN peut avoir des limitations de taux (rate limiting)
-- La bounding box doit être en WGS84 (EPSG:4326)
-- Pour une utilisation en production, vous devrez peut-être vous inscrire sur https://geoservices.ign.fr/ pour obtenir une clé API
+- This example requires an internet connection
+- IGN API may have rate limiting
+- Bounding box must be in WGS84 (EPSG:4326)
+- For production use you may need to register at https://geoservices.ign.fr/ to get an API key
 
 ### 5. `building_complete.rs`
 
-Exemple détaillé couvrant tous les cas d'usage:
+Detailed example covering all use cases:
 
-- Création manuelle de bâtiments
-- Chargement depuis GeoJSON
-- Traitement des hauteurs avec différents scénarios
-- Conversion vers Polars DataFrame
+- Manual building creation
+- Loading from GeoJSON
+- Height processing with different scenarios
+- Conversion to Polars DataFrame
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example building_complete
 ```
 
-## Exemples DEM
+## DEM examples
 
 ### 6. `dem_from_ign.rs`
 
-Exemple montrant comment télécharger et traiter un DEM (Digital Elevation Model) depuis l'API IGN.
+Example showing how to download and process a DEM (Digital Elevation Model) from the IGN API.
 
-**Exécution:**
+**Run:**
 
 ```bash
 cargo run --example dem_from_ign
 ```
 
-**Ce que fait cet exemple:**
+**What this example does:**
 
-- Crée une instance `Dem` (Python: `Dem(output_path='./')`)
-- Définit une bounding box (Python: `dem.Bbox = [...]`)
-- Télécharge le DEM depuis l'API IGN via WMS-R
-- Sauvegarde le fichier GeoTIFF
-- Génère un masque pour les limites du DEM
+- Creates a `Dem` instance (Python: `Dem(output_path='./')`)
+- Sets a bounding box (Python: `dem.Bbox = [...]`)
+- Downloads the DEM from IGN API via WMS-R
+- Saves the GeoTIFF file
+- Generates a mask for the DEM boundaries
 
 **Note:**
 
-- Cet exemple nécessite une connexion internet
-- Le DEM est téléchargé via le service WMS-R de l'IGN
-- Le fichier est sauvegardé au format GeoTIFF
+- This example requires an internet connection
+- DEM is downloaded via IGN WMS-R service
+- Output is saved as GeoTIFF
 
-## Organisation des exemples
+## Example organization
 
-Les exemples sont organisés par type de source de données:
+Examples are organized by data source type:
 
-- **Building**: Exemples liés aux bâtiments
-  - `building_manual`: Création manuelle
-  - `building_from_geojson`: Chargement depuis GeoJSON
-  - `building_from_ign`: Chargement depuis IGN avec `run()`
-  - `building_from_ign_api`: Chargement depuis IGN API (détaillé)
-  - `building_complete`: Exemple complet avec tous les cas
-- **DEM**: Exemples liés au modèle numérique d'élévation
-  - `dem_from_ign`: Chargement depuis IGN API
+- **Building**: Building-related examples
+  - `building_manual`: Manual creation
+  - `building_from_geojson`: Load from GeoJSON
+  - `building_from_ign`: Load from IGN with `run()`
+  - `building_from_ign_api`: Load from IGN API (detailed)
+  - `building_complete`: Complete example with all cases
+- **DEM**: Digital Elevation Model examples
+  - `dem_from_ign`: Load from IGN API
 
-## Ordre recommandé pour apprendre
+## Recommended learning order
 
-1. Commencez par `building_manual` pour comprendre les bases
-2. Puis `building_from_geojson` pour voir le chargement de données
-3. Ensuite `building_from_ign` pour comprendre le pattern Python
-4. Enfin `building_complete` pour voir tous les cas d'usage
-5. Pour le DEM, utilisez `dem_from_ign`
+1. Start with `building_manual` to understand the basics
+2. Then `building_from_geojson` to see data loading
+3. Then `building_from_ign` to understand the Python pattern
+4. Finally `building_complete` to see all use cases
+5. For DEM, use `dem_from_ign`

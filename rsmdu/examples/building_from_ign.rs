@@ -6,8 +6,8 @@ use anyhow::Result;
 use rsmdu::geometric::building::BuildingCollection;
 
 fn main() -> Result<()> {
-    println!("=== Exemple: BuildingCollection avec run() ===\n");
-    println!("Suivant le code Python:");
+    println!("=== Example: BuildingCollection with run() ===\n");
+    println!("Following Python code:");
     println!("  buildings = Building(output_path='./')");
     println!("  buildings.Bbox = [-1.152704, 46.181627, -1.139893, 46.18699]");
     println!("  buildings = buildings.run()\n");
@@ -25,10 +25,10 @@ fn main() -> Result<()> {
     // Set bounding box for IGN API request
     buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)?;
 
-    println!("Bounding box définie:");
-    println!("  - Longitude: -1.152704 à -1.139893");
-    println!("  - Latitude: 46.181627 à 46.18699");
-    println!("  - Zone: La Rochelle, France");
+    println!("Bounding box set:");
+    println!("  - Longitude: -1.152704 to -1.139893");
+    println!("  - Latitude: 46.181627 to 46.18699");
+    println!("  - Area: La Rochelle, France");
     println!("  - Format: WGS84 (EPSG:4326)\n");
 
     // Python: buildings = buildings.run()
@@ -37,24 +37,24 @@ fn main() -> Result<()> {
     // - Else: load from shapefile
     // - Process heights (fill missing heights, calculate mean, etc.)
     // - Return self
-    println!("Exécution de run()...");
-    println!("  - Téléchargement depuis l'API IGN (key='buildings')");
-    println!("  - Chargement depuis GeoJSON");
-    println!("  - Traitement des hauteurs\n");
+    println!("Running run()...");
+    println!("  - Downloading from IGN API (key='buildings')");
+    println!("  - Loading from GeoJSON");
+    println!("  - Processing heights\n");
 
     let buildings = buildings.run()?;
 
-    println!("Bâtiments chargés et traités: {}", buildings.len());
+    println!("Buildings loaded and processed: {}", buildings.len());
 
     if buildings.len() > 0 {
         println!(
-            "\nHauteur moyenne (pondérée par surface): {:.2} m",
+            "\nMean height (area-weighted): {:.2} m",
             buildings.calculate_mean_height()
         );
 
         // Convert to Polars DataFrame (similar to to_gdf() in Python)
         let df = buildings.to_polars_df()?;
-        println!("\nDataFrame Polars (équivalent à to_gdf() en Python):");
+        println!("\nPolars DataFrame (equivalent to to_gdf() in Python):");
         println!("{}", df.head(Some(5)));
     }
 

@@ -4,7 +4,7 @@ use rsmdu::geometric::lcz::Lcz;
 /// Example: Loading LCZ (Local Climate Zone) data from URL
 /// Following Python example from pymdu.geometric.Lcz
 fn main() -> Result<()> {
-    println!("=== Exemple: Chargement de LCZ depuis URL ===\n");
+    println!("=== Example: Loading LCZ from URL ===\n");
 
     // Create Lcz instance
     // Python: lcz = Lcz()
@@ -14,14 +14,14 @@ fn main() -> Result<()> {
     // Python: lcz.bbox = [-1.152704, 46.181627, -1.139893, 46.18699]
     lcz.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699);
 
-    println!("Bounding box définie:");
-    println!("  - Longitude: -1.152704 à -1.139893");
-    println!("  - Latitude: 46.181627 à 46.18699");
-    println!("  - Zone: La Rochelle, France");
+    println!("Bounding box set:");
+    println!("  - Longitude: -1.152704 to -1.139893");
+    println!("  - Latitude: 46.181627 to 46.18699");
+    println!("  - Area: La Rochelle, France");
     println!("  - Format: WGS84 (EPSG:4326)\n");
 
     // Display LCZ color table
-    println!("Table de couleurs LCZ:");
+    println!("LCZ color table:");
     for (code, (name, color)) in &lcz.table_color {
         println!("  LCZ {}: {} ({})", code, name, color);
     }
@@ -29,11 +29,11 @@ fn main() -> Result<()> {
 
     // Run LCZ processing
     // Python: lcz = lcz.run()
-    println!("Téléchargement et traitement de LCZ depuis URL...");
+    println!("Downloading and processing LCZ from URL...");
     println!("  Note: Full implementation requires GDAL shapefile reading and spatial overlay");
     let lcz_result = lcz.run(None)?;
 
-    println!("\n✅ Traitement terminé!");
+    println!("\n✅ Processing complete!");
     println!("  - TODO: Implement full shapefile reading and overlay operations");
 
     Ok(())
