@@ -24,52 +24,12 @@ from pathlib import Path
 import geopandas as gpd
 import numpy as np
 import rasterio
+import solweig
 from osgeo import gdal, gdalconst
 from rasterio.features import rasterize
-from shapely.geometry import shape
+from shapely.geometry import box, shape
 
 import pymdurs
-
-# Try to import umepr for SVF calculation
-try:
-    from umepr import solweig_runner_rust, svf
-
-    HAS_UMEPR = True
-except ImportError:
-    HAS_UMEPR = False
-    print("⚠️  umepr package not available. SVF calculation will be skipped.")
-    print(
-        "   Install with: pip install 'umepr @ git+https://github.com/UMEP-dev/umep-rust.git'"
-    )
-    print("   On Apple Silicon, you may need: rustup target add x86_64-apple-darwin")
-
-# Try to import umep for additional utilities (optional)
-try:
-    from umep import wall_heightaspect_algorithm  # noqa: F401
-    from umep.functions.SOLWEIGpython import solweig_runner_core
-
-    HAS_UMEP = True
-except ImportError:
-    HAS_UMEP = False
-    print("⚠️  umep package not available. Some features will be disabled.")
-
-print("HAS_UMEPR", HAS_UMEPR)
-print("HAS_UMEP", HAS_UMEP)
-
-
-def fill_nodata_nan(tif_path, nodata_fallback=-9999):
-    """Replace NaN with nodata in a GeoTIFF so SOLWEIG (int conversion) does not fail."""
-    path = Path(tif_path)
-    if not path.exists():
-        return
-    with rasterio.open(path, "r+") as src:
-        nd = src.nodata if src.nodata is not None else nodata_fallback
-        for i in range(1, src.count + 1):
-            band = src.read(i)
-            if np.issubdtype(band.dtype, np.floating) and np.any(np.isnan(band)):
-                band = np.where(np.isnan(band), nd, band)
-                src.write(band, i)
-        src.nodata = nd
 
 
 def main():
@@ -85,6 +45,13 @@ def main():
     # Bounding box (La Rochelle area, France)
     # Format: min_x, min_y, max_x, max_y (WGS84, EPSG:4326)
     bbox_wgs84 = (-1.152704, 46.181627, -1.139893, 46.18699)
+
+    # Convert bbox to Lambert-93 (EPSG:2154) with GeoPandas
+    minx, miny, maxx, maxy = bbox_wgs84
+    geom_wgs84 = box(minx, miny, maxx, maxy)
+    gdf_bbox = gpd.GeoDataFrame(geometry=[geom_wgs84], crs="EPSG:4326")
+    gdf_bbox = gdf_bbox.to_crs(2154)
+    bbox_2154 = tuple(gdf_bbox.total_bounds)  # (minx, miny, maxx, maxy)
 
     # Working CRS (Lambert 93 - EPSG:2154)
     working_crs = 2154
@@ -229,95 +196,98 @@ def main():
     lc_path = Path(output_folder_str) / "landcover_clip.tif"
 
     # ========================================================================
-    # Step 4: Calculate Sky View Factor (SVF) using umepr
-    # ========================================================================
-    print("\n" + "=" * 60)
-    print("Step 4: Calculating Sky View Factor (SVF) using umepr...")
-    print("=" * 60)
-
-    if not HAS_UMEPR:
-        print("⚠️  Skipping SVF calculation - umepr not available")
-    elif dsm_path and os.path.exists(dsm_path):
-        # Get bounding box from the actual raster bounds
-        # This ensures the bbox matches exactly with the raster extent
-        with rasterio.open(dsm_path) as dsm_src:
-            # Get the actual bounds of the raster
-            bounds = dsm_src.bounds
-            total_extents = [bounds.left, bounds.bottom, bounds.right, bounds.top]
-
-        print(f"📐 Using raster bounds for SVF: {total_extents}")
-
-        svf_output_dir = str(output_path / "svf")
-        os.makedirs(svf_output_dir, exist_ok=True)
-
-        try:
-            svf.generate_svf(
-                dsm_path=dsm_path,
-                bbox=total_extents,
-                out_dir=svf_output_dir,
-                cdsm_path=cdsm_path
-                if cdsm_path and os.path.exists(cdsm_path)
-                else None,
-                trunk_ratio_perc=25,
-                trans_veg_perc=3,  # 3% transmissivity for vegetation
-                use_tiled_loading=False,
-            )
-            print(f"✅ SVF calculation complete! Output in: {svf_output_dir}")
-        except Exception as e:
-            print(f"⚠️  SVF calculation failed: {e}")
-            print(f"   Error details: {type(e).__name__}: {e}")
-    elif dsm_path and os.path.exists(dsm_path):
-        print("⚠️  Skipping SVF calculation - umepr not available")
-    else:
-        print("⚠️  Skipping SVF calculation - DSM not available")
-
-    # ========================================================================
-    # Step 5: Generate wall heights for SOLWEIG
-    # ========================================================================
-    if HAS_UMEP and dsm_path and os.path.exists(dsm_path):
-        print("\n" + "=" * 60)
-        print("Step 5: Generating wall heights for SOLWEIG...")
-        print("=" * 60)
-
-        # Get bounding box from the actual raster bounds
-        with rasterio.open(dsm_path) as dsm_src:
-            bounds = dsm_src.bounds
-            total_extents = [bounds.left, bounds.bottom, bounds.right, bounds.top]
-
-        try:
-            walls_output_dir = str(output_path / "walls")
-            os.makedirs(walls_output_dir, exist_ok=True)
-
-            wall_heightaspect_algorithm.generate_wall_hts(
-                dsm_path=dsm_path,
-                bbox=total_extents,
-                out_dir=walls_output_dir,
-            )
-            print(f"✅ Wall heights generated! Output in: {walls_output_dir}")
-        except Exception as e:
-            print(f"⚠️  Wall height generation failed: {e}")
-
-    # ========================================================================
     # Step 6: Run SOLWEIG for thermal comfort analysis
     # ========================================================================
-    if HAS_UMEPR and dsm_path and os.path.exists(dsm_path):
+    if dsm_path and os.path.exists(dsm_path):
         print("\n" + "=" * 60)
         print("Step 6: Running SOLWEIG for thermal comfort analysis...")
         print("=" * 60)
-
-        # Replace NaN with nodata in rasters to avoid "cannot convert float NaN to integer"
-        for rast in (dsm_path, cdsm_path, dem_tiff_path):
-            if rast and os.path.exists(rast):
-                fill_nodata_nan(rast)
-
-        SRR = solweig_runner_rust.SolweigRunRust(
-            "configsolweig.ini",
-            "parametersforsolweig.json",
-            use_tiled_loading=False,
-            tile_size=1024,
+        # %%
+        # Step 1: Prepare surface data
+        # - CRS automatically extracted from DSM
+        # - Walls and SVF computed and cached to working_dir if not provided
+        # - Extent and resolution handled automatically
+        # - Resampled data saved to working_dir for inspection
+        surface = solweig.SurfaceData.prepare(
+            dsm=str(dsm_path),
+            working_dir=str(output_path / "working"),  # Cache preprocessing here
+            cdsm=str(cdsm_path),
+            # bbox=bbox_2154,  # Optional: specify extent
+            pixel_size=1.0,  # Optional: specify resolution (default: from DSM),
+            land_cover=str(lc_path),  # Grid with class IDs (0-7, 99-102),
         )
-        SRR.run()
+
+        # Load weather from EPW file
+        weather_list = solweig.Weather.from_epw(
+            "la_rochelle_2025.epw",
+            start="2025-07-01",
+            end="2025-07-03",
+        )
+        physics = solweig.load_physics("parametersforsolweig.json")
+        # Calculate timeseries
+        results = solweig.calculate_timeseries(
+            surface=surface,
+            physics=physics,
+            human=solweig.HumanParams(
+                abs_k=0.65,  # Lower shortwave absorption
+                abs_l=0.97,  # Higher longwave absorption
+                weight=70,  # 70 kg
+                height=1.65,  # 165 cmrm
+                posture="sitting",
+            ),
+            weather_series=weather_list,
+            use_anisotropic_sky=True,  # Uses SVF (computed automatically if needed)
+            conifer=False,  # Use seasonal leaf on/off (set True for evergreen trees)
+            output_dir=str(output_path),
+            outputs=["tmrt", "shadow"],
+        )
         print("✅ SOLWEIG run complete!")
+
+        # %%
+        # Optional: Load and inspect run metadata
+        # This metadata captures all parameters used in the calculation for reproducibility
+        metadata = solweig.load_run_metadata(output_path / "run_metadata.json")
+        print("\nRun metadata loaded:")
+        print(f"  Timestamp: {metadata['run_timestamp']}")
+        print(f"  SOLWEIG version: {metadata['solweig_version']}")
+        print(
+            f"  Location: {metadata['location']['latitude']:.2f}°N, {metadata['location']['longitude']:.2f}°E"
+        )
+        print(
+            f"  Human posture: {metadata.get('human', {}).get('posture', 'default (standing)')}"
+        )
+        print(f"  Anisotropic sky: {metadata['parameters']['use_anisotropic_sky']}")
+        print(f"  Weather timesteps: {metadata['timeseries']['timesteps']}")
+        print(
+            f"  Date range: {metadata['timeseries']['start']} to {metadata['timeseries']['end']}"
+        )
+
+        # %%
+        # Step 4: Post-process thermal comfort indices (UTCI/PET)
+        # UTCI and PET are computed separately for better performance
+        # This allows you to:
+        # - Skip thermal comfort if you only need Tmrt
+        # - Compute for subset of timesteps
+        # - Compute for different human parameters without re-running main calculation
+
+        # Compute UTCI (fast polynomial, ~1 second for full timeseries)
+        utci_dir = output_path / "output_utci"
+        n_utci = solweig.compute_utci(
+            tmrt_dir=str(output_path),
+            weather_series=weather_list,
+            output_dir=str(utci_dir),
+        )
+        print(f"\n✓ UTCI post-processing complete! Processed {n_utci} timesteps.")
+
+        # Compute PET (slower iterative solver, optional)
+        # pet_dir = output_folder_path / "output_pet"
+        # n_pet = solweig.compute_pet(
+        #     tmrt_dir=str(output_path),
+        #     weather_series=weather_list,
+        #     output_dir=str(output_path / "output_pet"),
+        #     human=solweig.HumanParams(weight=75, height=1.75),
+        # )
+        # print(f"\n✓ PET post-processing complete! Processed {n_pet} timesteps.")
     else:
         print("⚠️  Skipping SOLWEIG - missing requirements or DSM not available")
 
@@ -328,17 +298,6 @@ def main():
     print("✅ UMEP workflow complete!")
     print("=" * 60)
     print(f"📁 All outputs saved to: {output_folder_str}")
-    print("\nGenerated files:")
-    if dsm_path and os.path.exists(dsm_path):
-        print(f"  - DSM: {dsm_path}")
-    if cdsm_path and os.path.exists(cdsm_path):
-        print(f"  - CDSM: {cdsm_path}")
-    if dem_tiff_path.exists():
-        print(f"  - DEM: {dem_tiff_path}")
-    if os.path.exists(str(output_path / "svf")):
-        print(f"  - SVF: {output_path / 'svf'}")
-    if HAS_UMEP and os.path.exists(str(output_path / "walls")):
-        print(f"  - Wall heights: {output_path / 'walls'}")
 
 
 if __name__ == "__main__":

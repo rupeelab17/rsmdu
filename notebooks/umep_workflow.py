@@ -7,6 +7,7 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -48,12 +49,6 @@ def _():
     import numpy as np
     import rasterio
     from osgeo import gdal, gdalconst
-    from rasterio.features import rasterize
-    from shapely.geometry import shape
-
-    import geopandas as gpd
-    import numpy as np
-    import rasterio
     from rasterio.features import rasterize, shapes
     from rasterio.transform import from_bounds
     from shapely.geometry import shape
@@ -71,7 +66,9 @@ def _():
         print(
             "   Install with: pip install 'umepr @ git+https://github.com/UMEP-dev/umep-rust.git'"
         )
-        print("   On Apple Silicon, you may need: rustup target add x86_64-apple-darwin")
+        print(
+            "   On Apple Silicon, you may need: rustup target add x86_64-apple-darwin"
+        )
 
     # Try to import umep for additional utilities (optional)
     try:
@@ -85,7 +82,6 @@ def _():
 
     print("HAS_UMEPR", HAS_UMEPR)
     print("HAS_UMEP", HAS_UMEP)
-
 
     # ========================================================================
     # COSIA Color to Class Mapping
@@ -142,12 +138,10 @@ def _():
         7: "Water",
     }
 
-
     def hex_to_rgb(hex_color):
         """Convert hex color to RGB tuple."""
         hex_color = hex_color.lstrip("#")
         return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
-
 
     def geodataframe_to_tif_with_metadata(
         gdf: gpd.GeoDataFrame,
@@ -187,7 +181,9 @@ def _():
             )
 
         print(f"   Dimensions calculées: {width}x{height} pixels")
-        transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+        transform = from_bounds(
+            bounds[0], bounds[1], bounds[2], bounds[3], width, height
+        )
 
         # Rasterize
         shapes_iter = ((geom, value) for geom, value in zip(gdf.geometry, gdf[column]))
@@ -243,7 +239,6 @@ def _():
 
         return raster
 
-
     def vectorize_cosia_raster(cosia_tiff_path: str):
         """
         Vectorize COSIA raster by matching RGB colors to landcover classes.
@@ -284,7 +279,9 @@ def _():
 
             for geom, value in results:
                 # Decode integer to RGB
-                value_int = int(value) if isinstance(value, (float, np.floating)) else value
+                value_int = (
+                    int(value) if isinstance(value, (float, np.floating)) else value
+                )
                 r = (value_int >> 16) & 255
                 g = (value_int >> 8) & 255
                 b = value_int & 255
@@ -318,7 +315,6 @@ def _():
         print(f"   Classes trouvées: {gdf['classe'].value_counts().to_dict()}")
 
         return gdf
-
 
     def run_cosia(output_path: Path):
         """Main workflow: Download COSIA, vectorize, and convert to UMEP format."""
@@ -410,6 +406,20 @@ def _():
         print(f"   - UMEP landcover raster: {landcover_tif}")
 
         return cosia, gdf, raster
+
+    def fill_nodata_nan(tif_path, nodata_fallback=-9999):
+        """Replace NaN with nodata in a GeoTIFF so SOLWEIG (int conversion) does not fail."""
+        path = Path(tif_path)
+        if not path.exists():
+            return
+        with rasterio.open(path, "r+") as src:
+            nd = src.nodata if src.nodata is not None else nodata_fallback
+            for i in range(1, src.count + 1):
+                band = src.read(i)
+                if np.issubdtype(band.dtype, np.floating) and np.any(np.isnan(band)):
+                    band = np.where(np.isnan(band), nd, band)
+                    src.write(band, i)
+            src.nodata = nd
 
     def run_umep(output_path):
         print("🌆 Starting UMEP workflow with pymdurs and umepr...")
@@ -644,6 +654,11 @@ def _():
             print("Step 6: Running SOLWEIG for thermal comfort analysis...")
             print("=" * 60)
 
+            # Replace NaN with nodata in rasters to avoid "cannot convert float NaN to integer"
+            for rast in (dsm_path, cdsm_path, dem_tiff_path):
+                if rast and os.path.exists(rast):
+                    fill_nodata_nan(rast)
+
             SRR = solweig_runner_rust.SolweigRunRust(
                 "configsolweig.ini",
                 "parametersforsolweig.json",
@@ -697,13 +712,13 @@ def _(mo):
 
 @app.cell
 def _(rasterio):
-    from rasterio.plot import show
     from matplotlib import pyplot as plt
+    from rasterio.plot import show
 
     fig, ax = plt.subplots(figsize=(15, 15))
     src = rasterio.open("output/Tmrt_average.tif")
-    plt.imshow(src.read(1), cmap='pink')
-    show(src, ax=ax, cmap='plasma')
+    plt.imshow(src.read(1), cmap="pink")
+    show(src, ax=ax, cmap="plasma")
     return
 
 

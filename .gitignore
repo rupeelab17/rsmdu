@@ -151,6 +151,7 @@ notebooks/output/*.tif
 
 # Ignorer tous les .tif ailleurs
 *.tif
+*.png
 *.npz
 *.zip
 *.xml

@@ -7,7 +7,7 @@ name = "pymdurs"
 version = "0.1.1"
 description = "Rust transpilation of pymdu (Python Urban Data Model) - Python bindings"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "GPL-3.0" }
 authors = [
     { name = "Boris Brangeon", email = "boris.brangeon@plateforme-tipee.com" }
@@ -27,7 +27,8 @@ dependencies = [
     "geopandas>=1.0.1",
     "rasterio>=1.4.3",
     "umep>=0.0.1a18",
-    "umepr @ git+https://github.com/UMEP-dev/solweig.git",
+    "umepr @ git+https://github.com/UMEP-dev/solweig.git@main",
+    "solweig @ git+https://github.com/UMEP-dev/solweig.git@dev"
 ]
 
 [project.optional-dependencies]
@@ -57,6 +58,9 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+[tool.uv.sources]
+solweig = { git = "https://github.com/UMEP-dev/solweig.git", rev = "dev" }
 
 [dependency-groups]
 dev = [
