@@ -129,7 +129,7 @@ pymdurs/
 
 ### Python Package
 
-**Requirements:** Python >= 3.9, pandas >= 2.0.0, numpy >= 2.0.2
+**Requirements:** Python >= 3.10, pandas >= 2.0.0, numpy >= 2.0.2
 
 **Important:** Run maturin from the **project root** (where `pyproject.toml` is). Maturin uses `manifest-path = "pymdurs/Cargo.toml"`.
 
@@ -179,6 +179,7 @@ Maturin compiles the Rust extension. If Rust is not installed, follow the instru
 #### Windows
 
 1. **Download and run rustup-init.exe:**
+
    - Visit https://rustup.rs/
    - Download `rustup-init.exe`
    - Run the installer and follow the prompts
@@ -420,7 +421,7 @@ const geojson = {
 
 const collection = WasmBuildingCollection.from_geojson(
   JSON.stringify(geojson),
-  3.0, // default storey height in meters
+  3.0 // default storey height in meters
 );
 
 // Process heights
@@ -449,7 +450,7 @@ const dem = await WasmDem.from_ign_api(
   -1.152704, // min_x
   46.181627, // min_y
   -1.139893, // max_x
-  46.18699, // max_y
+  46.18699 // max_y
 );
 
 // Get DEM dimensions
@@ -486,7 +487,7 @@ Located in `rsmdu/examples/`:
 - **`iris_from_ign.rs`**: Downloading and processing IRIS statistical units from IGN API
 - **`lcz_from_url.rs`**: Loading and processing LCZ data from URL
 - **`cosia_from_ign.rs`**: Downloading COSIA landcover raster from IGN API
-- **`rnb_from_api.rs`**: Downloading RNB (Référentiel National des Bâtiments) data from IGN API
+- **`rnb_from_api.rs`**: Downloading RNB (French National Building Reference) data from RNB API
 - **`road_from_ign.rs`**: Downloading road segments from IGN API
 - **`water_from_ign.rs`**: Downloading water bodies from IGN API
 - **`vegetation_from_ign.rs`**: Downloading vegetation zones from IGN API
@@ -508,7 +509,7 @@ cargo run --example rnb_from_api
 
 ### Python Examples
 
-Located in `pymdurs/examples/`:
+Located in `examples/` (see [examples/README.md](examples/README.md) for full documentation):
 
 - **`building_basic.py`**: Basic Building usage
 - **`building_from_ign.py`**: Load buildings from IGN API
@@ -517,22 +518,23 @@ Located in `pymdurs/examples/`:
 - **`iris_from_ign.py`**: Download IRIS statistical units from IGN API
 - **`lcz_from_url.py`**: Load LCZ data from URL
 - **`cosia_from_ign.py`**: Complete COSIA workflow - download, vectorize and convert to UMEP format
-- **`rnb_from_api.py`**: Download RNB (Référentiel National des Bâtiments) data from IGN API
+- **`rnb_from_api.py`**: Download RNB (French National Building Reference) data from RNB API
 - **`lidar_from_wfs.py`**: Download and process LiDAR data from IGN WFS service
 - **`road_from_ign.py`**: Download road segments from IGN API
 - **`water_from_ign.py`**: Download water bodies from IGN API
 - **`vegetation_from_ign.py`**: Download vegetation zones from IGN API
 - **`umep_workflow.py`**: Complete UMEP workflow for urban climate modeling (SOLWEIG, SVF, etc.)
+- **`umep_workflow_new.py`**: Alternative UMEP workflow using solweig (SOLWEIG from UMEP-dev), with GIF export from preview PNGs
 
-**Run Python examples:**
+**Run Python examples** (from project root):
 
 ```bash
-cd pymdurs
 python examples/building_basic.py
 python examples/building_from_ign.py
 python examples/dem_from_ign.py
 python examples/cosia_from_ign.py
 python examples/umep_workflow.py
+python examples/umep_workflow_new.py
 ```
 
 ### WebAssembly Examples
@@ -599,10 +601,12 @@ The library integrates with the French IGN (Institut Géographique National) Gé
 The project uses a Cargo workspace with three crates:
 
 1. **`rsmdu`**: Core Rust library with all geospatial functionality
+
    - Uses feature flags (`wasm`) to conditionally compile WASM-incompatible dependencies
    - Optional dependencies: `gdal`, `proj`, `geos`, `polars`, `reqwest`, etc.
 
 2. **`pymdurs`**: Python bindings using PyO3
+
    - Depends on `rsmdu` crate
    - Provides Pythonic API with aliases
 
@@ -841,4 +845,4 @@ This is an early release. The API may change in future versions. See the [Status
 - **Rust API**: Run `cargo doc --open` in the `rsmdu` directory
 - **Python API**: See `pymdurs/README.md`
 - **WebAssembly API**: See `rsmdu-wasm/README.md`
-- **Examples**: See `rsmdu/examples/`, `pymdurs/examples/`, and `rsmdu-wasm/examples/`
+- **Examples**: See [examples/README.md](examples/README.md), `rsmdu/examples/`, and `rsmdu-wasm/examples/`
