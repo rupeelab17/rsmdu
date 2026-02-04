@@ -37,23 +37,23 @@ def preview_pngs_to_gif(
     duration_ms: int = 500,
     loop: int = 0,
 ) -> Path:
-    """Crée un GIF animé à partir des PNG d'aperçu ombre, tmrt, utci, pet (SOLWEIG).
+    """Create an animated GIF from SOLWEIG preview PNGs (shadow, tmrt, utci, pet).
 
     Args:
-        folder: Dossier contenant les fichiers shadow_*.preview.png
-        pattern: Glob pour les PNG (défaut: shadow_*.preview.png)
-        out_path: Fichier GIF de sortie (défaut: folder / "shadow_preview.gif")
-        duration_ms: Durée par frame en ms
-        loop: 0 = boucle infinie
+        folder: Folder containing shadow_*.preview.png (or other pattern) files.
+        pattern: Glob pattern for PNG files (default: shadow_*.preview.png).
+        out_path: Output GIF file (default: folder / "shadow_preview.gif").
+        duration_ms: Duration per frame in ms.
+        loop: 0 = loop forever.
 
     Returns:
-        Chemin du GIF créé.
+        Path to the created GIF.
     """
     folder = Path(folder)
     out_path = Path(out_path) if out_path else folder / "shadow_preview.gif"
     paths = sorted(folder.glob(pattern))
     if not paths:
-        raise FileNotFoundError(f"Aucun fichier trouvé: {folder / pattern}")
+        raise FileNotFoundError(f"No files found: {folder / pattern}")
     frames = [Image.open(p).convert("P", palette=Image.ADAPTIVE) for p in paths]
     frames[0].save(
         out_path,
@@ -221,7 +221,7 @@ def main():
             print(f"✅ Landcover clipped to: {landcover_clip_path}")
         else:
             print(
-                "⚠️  landcover.tif absent : exécuter d'abord depuis examples/ : "
+                "⚠️  landcover.tif missing: run from examples/ first: "
                 "python cosia_from_ign.py"
             )
     else:
@@ -346,18 +346,18 @@ if __name__ == "__main__":
         out_path="output/umep_workflow/shadow_preview.gif",
         duration_ms=500,
     )
-    print(f"✅ GIF créé: {gif_path}")
+    print(f"✅ GIF created: {gif_path}")
     gif_path = preview_pngs_to_gif(
         Path("output/umep_workflow"),
         pattern="tmrt_*.preview.png",
         out_path="output/umep_workflow/tmrt_preview.gif",
         duration_ms=500,
     )
-    print(f"✅ GIF créé: {gif_path}")
+    print(f"✅ GIF created: {gif_path}")
     gif_path = preview_pngs_to_gif(
         Path("output/umep_workflow/output_utci"),
         pattern="utci_*.preview.png",
         out_path="output/umep_workflow/utci_preview.gif",
         duration_ms=500,
     )
-    print(f"✅ GIF créé: {gif_path}")
+    print(f"✅ GIF created: {gif_path}")
