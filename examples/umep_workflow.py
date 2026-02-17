@@ -167,6 +167,7 @@ def main():
     mask_shp_path = Path(output_folder_str) / "mask.shp"
     if mask_shp_path.exists():
         warp_options = gdal.WarpOptions(
+            multithread=True,
             format="GTiff",
             xRes=1,
             yRes=1,

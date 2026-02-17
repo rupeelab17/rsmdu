@@ -289,6 +289,25 @@ xcode-select --install
    cargo --version
    ```
 
+#### Docker
+
+When building an image that installs pymdurs with `uv pip install https://github.com/rupeelab17/rsmdu.git`, **Rust must be installed in a previous layer**. If Rust is not present, maturin installs it on the fly and can hit "Text file busy (os error 26)" when running `cargo metadata` immediately after.
+
+**Fix:** install Rust (e.g. with rustup) **before** the step that runs `uv pip install`:
+
+```dockerfile
+# Install Rust so maturin does not auto-install it (avoids "Text file busy")
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && . "$HOME/.cargo/env" \
+    && rustc --version
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Then install pymdurs (maturin will find cargo and build the wheel)
+RUN micromamba run -n umep_pymdu python -m uv pip install https://github.com/rupeelab17/rsmdu.git
+```
+
+Adjust the environment (e.g. `micromamba run -n umep_pymdu`, or `ENV PATH` if Rust is installed for another user) to match your image.
+
 ### WebAssembly
 
 ```bash

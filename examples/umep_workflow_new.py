@@ -169,6 +169,7 @@ def main():
     mask_shp_path = Path(output_folder_str) / "mask.shp"
     if mask_shp_path.exists():
         warp_options = gdal.WarpOptions(
+            multithread=True,
             format="GTiff",
             xRes=1,
             yRes=1,
@@ -316,9 +317,57 @@ def main():
             use_anisotropic_sky=True,  # Uses SVF (computed automatically if needed)
             conifer=False,  # Use seasonal leaf on/off (set True for evergreen trees)
             output_dir=str(output_path),
-            outputs=["tmrt", "shadow"],
+            outputs=["tmrt", "shadow", "utci"],
         )
         print("✅ SOLWEIG run complete!")
+
+        print(results.report())
+
+        # %%
+        # Plot timeseries (Ta, Tmrt, UTCI, radiation, sun exposure over time)
+        results.plot()
+
+        # %%
+        # Visualise summary grids
+        import matplotlib.pyplot as plt  # noqa: E402
+
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+
+        im0 = axes[0, 0].imshow(results.tmrt_mean, cmap="hot")
+        axes[0, 0].set_title("Mean Tmrt (°C)")
+        plt.colorbar(im0, ax=axes[0, 0])
+
+        im1 = axes[0, 1].imshow(results.utci_mean, cmap="hot")
+        axes[0, 1].set_title("Mean UTCI (°C)")
+        plt.colorbar(im1, ax=axes[0, 1])
+
+        im2 = axes[0, 2].imshow(results.sun_hours, cmap="YlOrRd")
+        axes[0, 2].set_title("Sun hours")
+        plt.colorbar(im2, ax=axes[0, 2])
+
+        im3 = axes[1, 0].imshow(results.tmrt_day_mean, cmap="hot")
+        axes[1, 0].set_title("Mean daytime Tmrt (°C)")
+        plt.colorbar(im3, ax=axes[1, 0])
+
+        im4 = axes[1, 1].imshow(results.tmrt_night_mean, cmap="cool")
+        axes[1, 1].set_title("Mean nighttime Tmrt (°C)")
+        plt.colorbar(im4, ax=axes[1, 1])
+
+        # Show hours above the first day threshold (32°C by default)
+        threshold = sorted(results.utci_hours_above.keys())[0]
+        im5 = axes[1, 2].imshow(results.utci_hours_above[threshold], cmap="Reds")
+        axes[1, 2].set_title(f"UTCI hours > {threshold}°C")
+        plt.colorbar(im5, ax=axes[1, 2])
+
+        for ax in axes.flat:
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+        plt.suptitle(
+            f"SOLWEIG Summary — {len(results)} timesteps ({results.n_daytime} day, {results.n_nighttime} night)"
+        )
+        plt.tight_layout()
+        plt.show()
 
         # %%
         # Optional: Load and inspect run metadata
@@ -338,33 +387,6 @@ def main():
         print(
             f"  Date range: {metadata['timeseries']['start']} to {metadata['timeseries']['end']}"
         )
-
-        # %%
-        # Step 4: Post-process thermal comfort indices (UTCI/PET)
-        # UTCI and PET are computed separately for better performance
-        # This allows you to:
-        # - Skip thermal comfort if you only need Tmrt
-        # - Compute for subset of timesteps
-        # - Compute for different human parameters without re-running main calculation
-
-        # Compute UTCI (fast polynomial, ~1 second for full timeseries)
-        utci_dir = output_path / "output_utci"
-        n_utci = solweig.compute_utci(
-            tmrt_dir=str(output_path),
-            weather_series=weather_list,
-            output_dir=str(utci_dir),
-        )
-        print(f"\n✓ UTCI post-processing complete! Processed {n_utci} timesteps.")
-
-        # Compute PET (slower iterative solver, optional)
-        # pet_dir = output_folder_path / "output_pet"
-        # n_pet = solweig.compute_pet(
-        #     tmrt_dir=str(output_path),
-        #     weather_series=weather_list,
-        #     output_dir=str(output_path / "output_pet"),
-        #     human=solweig.HumanParams(weight=75, height=1.75),
-        # )
-        # print(f"\n✓ PET post-processing complete! Processed {n_pet} timesteps.")
     else:
         print("⚠️  Skipping SOLWEIG - missing requirements or DSM not available")
 

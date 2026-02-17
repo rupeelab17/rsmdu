@@ -37,7 +37,7 @@ impl IgnCollect {
     pub fn new() -> Result<Self> {
         let mut ign_keys = HashMap::new();
         ign_keys.insert("buildings".to_string(), "BDTOPO_V3:batiment".to_string());
-        ign_keys.insert("cosia".to_string(), "IGNF_COSIA_2021-2023".to_string());
+        ign_keys.insert("cosia".to_string(), "IGNF_COSIA_2024-2026".to_string());
         ign_keys.insert("water".to_string(), "BDTOPO_V3:plan_d_eau".to_string());
         ign_keys.insert("road".to_string(), "BDTOPO_V3:troncon_de_route".to_string());
         ign_keys.insert(
@@ -105,7 +105,7 @@ impl IgnCollect {
         // This works regardless of where the binary is executed from
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let csv_path = PathBuf::from(manifest_dir)
-            .join("src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv");
+            .join("src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv");
 
         if csv_path.exists() {
             return Ok(csv_path);
@@ -113,8 +113,8 @@ impl IgnCollect {
 
         // Fallback: try relative paths from current working directory
         let fallback_paths = vec![
-            PathBuf::from("src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv"),
-            PathBuf::from("./src/collect/ign/data/Tableau-suivi-services-web-23-05-2025.csv"),
+            PathBuf::from("src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv"),
+            PathBuf::from("./src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv"),
         ];
 
         for path in fallback_paths {
@@ -124,7 +124,7 @@ impl IgnCollect {
         }
 
         anyhow::bail!(
-            "CSV file not found. Please ensure Tableau-suivi-services-web-23-05-2025.csv is in src/collect/ign/data/. \
+            "CSV file not found. Please ensure Tableau-suivi-services-web-06-02-2026.csv is in src/collect/ign/data/. \
             Tried: {} and relative paths",
             csv_path.display()
         );
