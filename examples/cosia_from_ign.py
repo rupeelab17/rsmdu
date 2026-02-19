@@ -307,8 +307,6 @@ def main(output_path: Path):
 
     # Save vectorized shapefile
     landcover_shp = output_path / "cosia_landcover.shp"
-    gdf.to_file(landcover_shp, driver="ESRI Shapefile")
-    print(f"✅ Shapefile saved: {landcover_shp}")
 
     # ========================================================================
     # Step 3: Convert to UMEP format and rasterize
@@ -321,12 +319,27 @@ def main(output_path: Path):
     gdf = gdf.to_crs(working_crs)
 
     # Filter valid geometries
+    import matplotlib.pyplot as plt
+
     gdf_valid = gdf[gdf.geometry.notna()].copy()
+    fig, ax = plt.subplots(figsize=(10, 10))
+    gdf_valid.plot(ax=ax, cmap="viridis", column="type", legend=True)
+    ax.set_title("Landcover")
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.set_aspect("equal")
+    plt.show()
+    plt.savefig("gdf_valid.png")
+    plt.close()
+
     if len(gdf_valid) == 0:
         print("⚠️  No valid geometry, stopping processing")
         return
 
     print(f"📊 {len(gdf_valid)} valid geometries out of {len(gdf)} total")
+
+    gdf_valid.to_file(landcover_shp, driver="ESRI Shapefile")
+    print(f"✅ Shapefile saved: {landcover_shp}")
 
     # Rasterize to UMEP format
     landcover_tif = output_path / "landcover.tif"
@@ -334,7 +347,7 @@ def main(output_path: Path):
         gdf=gdf_valid,
         output_tif=str(landcover_tif),
         column="type",
-        resolution=1.0,  # 1 meter resolution
+        resolution=0.5,  # 1 meter resolution
     )
 
     # ========================================================================

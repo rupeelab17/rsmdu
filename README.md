@@ -164,6 +164,15 @@ uv sync
 
 With uv: `uv run maturin develop --target <target>`
 
+**macOS: linker can't find GDAL / "library 'gdal' not found"**  
+If you upgraded GDAL or PROJ with Homebrew, the linker may still use old paths. Clean and point pkg-config at the current install, then rebuild:
+
+```bash
+cd pymdurs && cargo clean && cd ..
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig"
+maturin develop --target aarch64-apple-darwin
+```
+
 #### 4. Verify and release
 
 ```bash

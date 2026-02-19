@@ -295,7 +295,7 @@ def main():
             land_cover=str(lc_path),  # Grid with class IDs (0-7, 99-102),
         )
 
-        # Load weather from EPW file
+        # Load weather from EPW fileVectorized COSIA
         weather_list = solweig.Weather.from_epw(
             "la_rochelle_2025.epw",
             start="2025-07-01 07:00",

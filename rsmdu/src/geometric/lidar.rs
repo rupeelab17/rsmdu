@@ -1239,27 +1239,13 @@ impl Lidar {
                 }
                 println!("     - Points loaded: {}", result.points.len());
 
-                // If more than 50% failures, fall back to standard LAZ
+                // If more than 50% failures, fall back to standard LAZ on the same cached bytes (no re-download)
                 if failure_rate > 0.5 {
                     eprintln!(
-                        "  High failure rate ({:.1}%), falling back to standard LAZ reader",
+                        "  High failure rate ({:.1}%), falling back to standard LAZ reader (using cached file)",
                         failure_rate * 100.0
                     );
-
-                    // Delete potentially corrupted cache
-                    if cache_path.exists() {
-                        eprintln!("  Removing potentially corrupted cache file");
-                        let _ = std::fs::remove_file(&cache_path);
-                    }
-
-                    // Re-download and try as standard LAZ
-                    let client = reqwest::blocking::Client::builder()
-                        .connect_timeout(std::time::Duration::from_secs(30))
-                        .timeout(std::time::Duration::from_secs(900))
-                        .build()?;
-
-                    let fresh_bytes = Self::download_with_verification(&client, url, &cache_path)?;
-                    return Self::read_as_standard_laz(fresh_bytes, filter_bbox);
+                    return Self::read_as_standard_laz(bytes, filter_bbox);
                 }
 
                 // If we got no points but had successful reads, the bbox might be outside the data
@@ -2124,6 +2110,97 @@ impl Lidar {
         let output_path = self.to_tif(&rasters, &output_file, write_out_file)?;
 
         Ok(output_path)
+    }
+
+    /// Export loaded LiDAR points (ROI of the current BBOX) to a LAS file.
+    /// Call set_bbox() first to load points. Use .las for uncompressed or .laz for compressed output.
+    #[cfg(feature = "las")]
+    pub fn save_las(&self, path: &Path) -> Result<PathBuf> {
+        let points = self
+            .loaded_points
+            .as_ref()
+            .context("No LiDAR points loaded. Call set_bbox() first.")?;
+        if points.is_empty() {
+            anyhow::bail!("No LiDAR points to export. Call set_bbox() first.");
+        }
+
+        let (min_x, min_y, min_z, _max_x, _max_y, _max_z) = points.iter().fold(
+            (
+                f64::INFINITY,
+                f64::INFINITY,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+                f64::NEG_INFINITY,
+                f64::NEG_INFINITY,
+            ),
+            |(min_x, min_y, min_z, max_x, max_y, max_z), p| {
+                (
+                    min_x.min(p.x),
+                    min_y.min(p.y),
+                    min_z.min(p.z),
+                    max_x.max(p.x),
+                    max_y.max(p.y),
+                    max_z.max(p.z),
+                )
+            },
+        );
+
+        let mut builder = las::Builder::from((1, 4));
+        // Format 0: no GPS time, no RGB — matches our Point (classification + return_number only).
+        builder.point_format = las::point::Format::new(0).context("Invalid point format")?;
+        builder.transforms = las::Vector {
+            x: las::Transform {
+                scale: 0.01,
+                offset: min_x,
+            },
+            y: las::Transform {
+                scale: 0.01,
+                offset: min_y,
+            },
+            z: las::Transform {
+                scale: 0.01,
+                offset: min_z,
+            },
+        };
+        let header = builder
+            .into_header()
+            .context("Failed to build LAS header")?;
+
+        let out_path: PathBuf = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.output_path.join(path)
+        };
+
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent).context("Failed to create output directory for LAS")?;
+        }
+
+        let mut writer =
+            las::Writer::from_path(&out_path, header).context("Failed to create LAS writer")?;
+
+        for p in points {
+            let classification = las::point::Classification::new(p.classification)
+                .unwrap_or(las::point::Classification::Unclassified);
+            let las_point = las::Point {
+                x: p.x,
+                y: p.y,
+                z: p.z,
+                classification,
+                return_number: 1,
+                number_of_returns: 1,
+                ..Default::default()
+            };
+            writer.write_point(las_point).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to write LAS point (check coordinates/format): {}",
+                    e
+                )
+            })?;
+        }
+
+        writer.close().context("Failed to close LAS writer")?;
+        Ok(out_path)
     }
 }
 

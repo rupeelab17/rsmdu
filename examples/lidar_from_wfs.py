@@ -7,6 +7,7 @@ This example demonstrates how to:
 3. Download LAZ files from IGN WFS service
 4. Process points to create DSM, DTM, and CHM rasters
 5. Save results as a multi-band GeoTIFF file
+6. Export the point cloud (ROI) as a .las file
 """
 
 import os
@@ -22,7 +23,10 @@ def main():
     lidar = pymdurs.geometric.Lidar(output_path="./output")
 
     # Set bounding box (La Rochelle area, France)
-    lidar.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
+    # lidar.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
+
+    # Load points (required for save_las)
+    lidar.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
 
     # Set CRS (optional, defaults to EPSG:2154)
     lidar.set_crs(2154)
@@ -42,6 +46,14 @@ def main():
     output_path = lidar.run(
         file_name="DSM.tif", classification_list=classification_list
     )
+
+    # Export points in ROI as .las
+    try:
+        las_path = lidar.save(filename="bbox.las")
+        print(f"📦 Point cloud (ROI) saved to: {las_path}")
+    except ValueError as e:
+        print(f"⚠️  Could not export LAS (ensure set_bbox loaded points): {e}")
+        las_path = None
 
     print(f"✅ LiDAR processing complete!")
     print(f"📁 GeoTIFF saved to: {output_path}")

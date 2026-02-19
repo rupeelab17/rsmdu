@@ -1,6 +1,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rsmdu::geometric::lidar::Lidar;
+use std::path::Path;
 
 use crate::bindings::geo_core::PyGeoCore;
 
@@ -89,6 +90,23 @@ impl PyLidar {
     /// Return the output directory path (string).
     fn get_output_path(&self) -> String {
         self.inner.get_output_path().to_string_lossy().to_string()
+    }
+
+    /// Export loaded LiDAR points (ROI of the current BBOX) to a LAS file.
+    /// Uses points already loaded by set_bbox(). Use .las for uncompressed, .laz for compressed.
+    ///
+    /// Args:
+    ///     filename: Output path (e.g. "bbox.las"). If relative, saved under the Lidar output directory.
+    ///
+    /// Returns:
+    ///     Absolute path to the written file.
+    #[pyo3(signature = (filename = "bbox.las"))]
+    #[pyo3(text_signature = "(self, filename='bbox.las')")]
+    fn save(&self, filename: &str) -> PyResult<String> {
+        self.inner
+            .save_las(Path::new(filename))
+            .map(|p| p.to_string_lossy().to_string())
+            .map_err(|e| PyValueError::new_err(format!("Failed to save LAS: {}", e)))
     }
 
     /// GeoCore instance (bbox, epsg, output_path).

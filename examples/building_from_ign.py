@@ -22,7 +22,8 @@ def main():
     )
 
     # Set bounding box (La Rochelle area, France)
-    buildings.set_bbox(-1.067679, 45.634195, -1.065716, 45.635583)
+    # buildings.set_bbox(-1.067679, 45.634195, -1.065716, 45.635583)
+    buildings.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
 
     geo = buildings.geo_core
     print("📦 Bounding box set")

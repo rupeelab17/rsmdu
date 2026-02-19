@@ -157,3 +157,6 @@ notebooks/output/*.tif
 *.xml
 # Python
 **__pycache__**
+
+.cursor/
+.claude/

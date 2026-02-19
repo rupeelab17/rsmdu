@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use csv::ReaderBuilder;
 use encoding_rs;
 use reqwest::blocking::Client;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -16,6 +17,17 @@ pub struct IgnServiceRow {
     pub service: String,
     pub nom_technique: String,
     pub url_geoplateforme: String,
+}
+
+/// Row deserialized from IGN CSV (headers: Service;Nom technique;URL d'acces Geoplateforme;...)
+#[derive(Debug, Deserialize)]
+struct IgnCsvRecord {
+    #[serde(rename = "Service")]
+    service: String,
+    #[serde(rename = "Nom technique")]
+    nom_technique: String,
+    #[serde(rename = "URL d'acces Geoplateforme")]
+    url_geoplateforme: String,
 }
 
 /// Base struct for IGN data collection
@@ -130,17 +142,15 @@ impl IgnCollect {
         );
     }
 
-    /// Load CSV file and index by nom_technique (column 4)
+    /// Load CSV file with the `csv` crate and index by nom_technique.
+    /// Uses semicolon delimiter and ISO-8859-1 encoding (IGN table format).
     fn load_csv_file(csv_path: &PathBuf) -> Result<HashMap<String, IgnServiceRow>> {
         let file =
             File::open(csv_path).context(format!("Failed to open CSV file: {:?}", csv_path))?;
 
-        // Read file with ISO-8859-1 encoding
-        let mut reader = BufReader::new(file);
         let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer)?;
+        BufReader::new(file).read_to_end(&mut buffer)?;
 
-        // Decode from ISO-8859-1
         let encoding =
             encoding_rs::Encoding::for_label(b"ISO-8859-1").unwrap_or(encoding_rs::WINDOWS_1252);
         let (decoded, _, _) = encoding.decode(&buffer);
@@ -148,34 +158,24 @@ impl IgnCollect {
 
         let mut rdr = ReaderBuilder::new()
             .delimiter(b';')
+            .has_headers(true)
             .from_reader(decoded_str.as_bytes());
 
         let mut df_csv_file = HashMap::new();
 
-        // Skip header
-        let _headers = rdr.headers()?;
-
-        for result in rdr.records() {
-            let record: csv::StringRecord = result.context("Failed to read CSV record")?;
-
-            if record.len() < 7 {
-                continue; // Skip incomplete rows
+        for result in rdr.deserialize() {
+            let record: IgnCsvRecord = result.context("Failed to deserialize CSV record")?;
+            if record.nom_technique.is_empty() {
+                continue;
             }
-
-            let service = record.get(0).unwrap_or("").to_string();
-            let nom_technique = record.get(4).unwrap_or("").to_string(); // Index 4
-            let url_geoplateforme = record.get(6).unwrap_or("").to_string(); // Index 6
-
-            if !nom_technique.is_empty() {
-                df_csv_file.insert(
-                    nom_technique.clone(),
-                    IgnServiceRow {
-                        service,
-                        nom_technique,
-                        url_geoplateforme,
-                    },
-                );
-            }
+            df_csv_file.insert(
+                record.nom_technique.clone(),
+                IgnServiceRow {
+                    service: record.service,
+                    nom_technique: record.nom_technique.clone(),
+                    url_geoplateforme: record.url_geoplateforme,
+                },
+            );
         }
 
         Ok(df_csv_file)
@@ -217,6 +217,8 @@ impl IgnCollect {
         let row = self
             .get_row_ressource(key)
             .context(format!("No CSV row found for key: {}", key))?;
+
+        println!("Row: {:?}", row);
 
         // Extract base URL from Géoplateforme URL (remove GetCapabilities part)
         // Following Python: url.split("&REQUEST=GetCapabilities")[0]
@@ -319,7 +321,7 @@ impl IgnCollect {
         // Add maxfeatures and startindex (following Python: startindex=0, maxfeatures=10000)
         request_url.push_str("&STARTINDEX=0&MAXFEATURES=10000");
 
-        println!("Request URL: {}", request_url);
+        println!("Request URL WFS: {}", request_url);
 
         let response = client
             .get(&request_url)
@@ -422,7 +424,7 @@ impl IgnCollect {
             )
         };
 
-        println!("Request URL: {}", request_url);
+        println!("Request URL WMS: {}", request_url);
 
         let response = client
             .get(&request_url)
