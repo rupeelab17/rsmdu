@@ -22,8 +22,8 @@ def main():
     )
 
     # Set bounding box (La Rochelle area, France)
-    # buildings.set_bbox(-1.067679, 45.634195, -1.065716, 45.635583)
-    buildings.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
+    buildings.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
+    # buildings.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
 
     geo = buildings.geo_core
     print("📦 Bounding box set")
@@ -47,9 +47,11 @@ def main():
     print(f"✅ GeoDataFrame created with {len(gdf)} features")
     print(f"📊 GeoDataFrame columns: {list(gdf.columns)}")
     print(f"📊 GeoDataFrame CRS: {gdf.crs}")
-    gdf = gdf.to_crs(epsg=3857)
+    gdf = gdf.to_crs(epsg=2154)
 
     gdf.to_file("buildings.shp", driver="ESRI Shapefile")
+    gdf.to_file("buildings.gpkg", driver="GPKG")
+    gdf.to_file("buildings.geojson", driver="GeoJSON")
 
     if geojson and "features" in geojson:
         num_features = len(geojson["features"])

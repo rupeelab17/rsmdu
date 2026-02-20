@@ -23,10 +23,9 @@ def main():
     lidar = pymdurs.geometric.Lidar(output_path="./output")
 
     # Set bounding box (La Rochelle area, France)
-    # lidar.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
-
+    lidar.set_bbox(-1.152704, 46.181627, -1.139893, 46.18699)
     # Load points (required for save_las)
-    lidar.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
+    # lidar.set_bbox(-1.148001, 46.184158, -1.145528, 46.185264)
 
     # Set CRS (optional, defaults to EPSG:2154)
     lidar.set_crs(2154)
@@ -37,11 +36,11 @@ def main():
 
     # Optional: Set classification filter
     # Following Python: classification_list=[3, 4, 5, 9]
-    # 2 = Ground, 3 = Low Vegetation, 4 = Medium Vegetation, 5 = High Vegetation, 9 = Water
-    classification_list = [3, 4, 5, 9]  # Vegetation and water classes
+    # 1 = unclassified, 2 = Ground, 3 = Low Vegetation, 4 = Medium Vegetation, 5 = High Vegetation, 9 = Water
+    classification_list = [3, 4, 5]  # Vegetation and water classes
     lidar.run(file_name="CDSM.tif", classification_list=classification_list)
 
-    classification_list = [2, 3, 4, 5, 6, 9]  # Ground and buildings classes
+    classification_list = [2, 6, 9, 10, 11]  # Ground and buildings classes
 
     output_path = lidar.run(
         file_name="DSM.tif", classification_list=classification_list

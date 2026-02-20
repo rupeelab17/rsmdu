@@ -17,10 +17,11 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pyproj
 import rasterio
 from rasterio.features import rasterize, shapes
 from rasterio.transform import from_bounds
-from shapely.geometry import shape
+from shapely.geometry import box, shape
 
 import pymdurs
 
@@ -57,8 +58,8 @@ COSIA_TO_UMEP = {
     "Sol nu": 6,  # Bare Soil
     "Surface eau": 7,  # Water
     "Neige": 7,  # Water
-    "Conifère": 6,  # Bare Soil (trees not in UMEP, mapped to soil)
-    "Feuillu": 6,  # Bare Soil (trees not in UMEP, mapped to soil)
+    "Conifère": 3,
+    "Feuillu": 3,
     "Coupe": 5,  # Grass
     "Broussaille": 5,  # Grass
     "Pelouse": 5,  # Grass
@@ -270,8 +271,55 @@ def main(output_path: Path):
 
     working_crs = 2154  # Lambert 93
 
+    # Domain boundary GeoJSON export (e.g. for City4CFD domain_bnd)
+    domain_geojson_path = output_path / "domainBnd.geojson"
+    # Côtés du domaine: None = bbox telle quelle; float = demi-côté en m (carré centré).
+    # Pour City4CFD: doit être > influence_region (ex. 400 si influence_region=300).
+    domain_half_side_m: float | None = (
+        114000  # 800 m de côté; mettre None pour utiliser la bbox
+    )
+
+    # Transform bbox WGS84 -> EPSG:2154 for display
+    transformer = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True)
+    min_x_2154, min_y_2154 = transformer.transform(bbox_wgs84[0], bbox_wgs84[1])
+    max_x_2154, max_y_2154 = transformer.transform(bbox_wgs84[2], bbox_wgs84[3])
+    bbox_2154 = (min_x_2154, min_y_2154, max_x_2154, max_y_2154)
+
+    # Central point of the simulation (centre du bbox).
+    # All points are translated by these coordinates. Must fall in a building polygon
+    # if using BPGs for influence region/domain boundaries.
+    point_of_interest_wgs84 = (
+        (bbox_wgs84[0] + bbox_wgs84[2]) / 2,
+        (bbox_wgs84[1] + bbox_wgs84[3]) / 2,
+    )
+    point_of_interest_2154 = (
+        (min_x_2154 + max_x_2154) / 2,
+        (min_y_2154 + max_y_2154) / 2,
+    )
+
+    # Build domain polygon: bbox or square centered on point_of_interest (côtés configurables)
+    if domain_half_side_m is not None:
+        cx, cy = point_of_interest_2154
+        h = domain_half_side_m
+        domain_geom = box(cx - h, cy - h, cx + h, cy + h)
+    else:
+        domain_geom = box(*bbox_2154)
+
+    domain_gdf = gpd.GeoDataFrame(
+        {"id": [1]},
+        geometry=[domain_geom],
+        crs=f"EPSG:{working_crs}",
+    )
+    domain_geojson_path.parent.mkdir(parents=True, exist_ok=True)
+    domain_gdf.to_file(domain_geojson_path, driver="GeoJSON")
+
     print("\n📦 Configuration:")
-    print(f"   Bounding box: {bbox_wgs84}")
+    print(f"   Bounding box (WGS84): {bbox_wgs84}")
+    print(f"   Bounding box (EPSG:2154): {bbox_2154}")
+    print(f"   point_of_interest (WGS84): {point_of_interest_wgs84}")
+    print(f"   point_of_interest (EPSG:2154): {point_of_interest_2154}")
+    print(f"   Domain half-side (m): {domain_half_side_m}")
+    print(f"   Domain GeoJSON: {domain_geojson_path}")
     print(f"   CRS: EPSG:{working_crs}")
     print(f"   Output folder: {output_path}")
 
@@ -328,7 +376,7 @@ def main(output_path: Path):
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.set_aspect("equal")
-    plt.show()
+    # plt.show()
     plt.savefig("gdf_valid.png")
     plt.close()
 
@@ -338,7 +386,15 @@ def main(output_path: Path):
 
     print(f"📊 {len(gdf_valid)} valid geometries out of {len(gdf)} total")
 
-    gdf_valid.to_file(landcover_shp, driver="ESRI Shapefile")
+    # landcover_shp = output_path / "roads.shp"
+    landcover_shp = output_path / "terrain.shp"
+    landcover_geojson = output_path / "terrain.geojson"
+
+    gdf_final = gdf_valid[gdf_valid["type"].isin([6, 1])].copy()
+    gdf_final["uniqueid"] = range(1, len(gdf_final) + 1)
+    gdf_final.to_file(landcover_shp, driver="ESRI Shapefile")
+    gdf_final.to_file(landcover_geojson, driver="GeoJSON")
+
     print(f"✅ Shapefile saved: {landcover_shp}")
 
     # Rasterize to UMEP format

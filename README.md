@@ -188,7 +188,6 @@ Maturin compiles the Rust extension. If Rust is not installed, follow the instru
 #### Windows
 
 1. **Download and run rustup-init.exe:**
-
    - Visit https://rustup.rs/
    - Download `rustup-init.exe`
    - Run the installer and follow the prompts
@@ -449,7 +448,7 @@ const geojson = {
 
 const collection = WasmBuildingCollection.from_geojson(
   JSON.stringify(geojson),
-  3.0 // default storey height in meters
+  3.0, // default storey height in meters
 );
 
 // Process heights
@@ -478,7 +477,7 @@ const dem = await WasmDem.from_ign_api(
   -1.152704, // min_x
   46.181627, // min_y
   -1.139893, // max_x
-  46.18699 // max_y
+  46.18699, // max_y
 );
 
 // Get DEM dimensions
@@ -629,12 +628,10 @@ The library integrates with the French IGN (Institut Géographique National) Gé
 The project uses a Cargo workspace with three crates:
 
 1. **`rsmdu`**: Core Rust library with all geospatial functionality
-
    - Uses feature flags (`wasm`) to conditionally compile WASM-incompatible dependencies
    - Optional dependencies: `gdal`, `proj`, `geos`, `polars`, `reqwest`, etc.
 
 2. **`pymdurs`**: Python bindings using PyO3
-
    - Depends on `rsmdu` crate
    - Provides Pythonic API with aliases
 
