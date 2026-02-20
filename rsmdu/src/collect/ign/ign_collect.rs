@@ -4,12 +4,18 @@ use encoding_rs;
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{create_dir_all, File, write};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
 use crate::collect::global_variables::TEMP_PATH;
 use crate::geo_core::{BoundingBox, GeoCore};
+
+/// Official IGN URL for the services table CSV (fallback when no local file is found).
+const IGN_CSV_URL: &str =
+    "https://geoservices.ign.fr/sites/default/files/2026-02/Tableau-suivi-services-web-06-02-2026.csv";
+
+const CSV_NAME: &str = "Tableau-suivi-services-web-06-02-2026.csv";
 
 /// CSV row structure for IGN services
 #[derive(Debug, Clone)]
@@ -111,35 +117,51 @@ impl IgnCollect {
         })
     }
 
-    /// Find CSV file in multiple possible locations
+    /// Find CSV file in multiple possible locations, or download from IGN URL and cache in TEMP_PATH.
     fn find_csv_file() -> Result<PathBuf> {
-        // Use env! macro to get the manifest directory at compile time
-        // This works regardless of where the binary is executed from
+        // 1) Dev: CARGO_MANIFEST_DIR
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let csv_path = PathBuf::from(manifest_dir)
-            .join("src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv");
-
+        let csv_path = PathBuf::from(manifest_dir).join("src/collect/ign/data").join(CSV_NAME);
         if csv_path.exists() {
             return Ok(csv_path);
         }
 
-        // Fallback: try relative paths from current working directory
-        let fallback_paths = vec![
-            PathBuf::from("src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv"),
-            PathBuf::from("./src/collect/ign/data/Tableau-suivi-services-web-06-02-2026.csv"),
-        ];
-
-        for path in fallback_paths {
+        // 2) Relative paths from cwd
+        for path in &[
+            PathBuf::from("src/collect/ign/data").join(CSV_NAME),
+            PathBuf::from("./src/collect/ign/data").join(CSV_NAME),
+        ] {
             if path.exists() {
-                return Ok(path);
+                return Ok(path.clone());
             }
         }
 
-        anyhow::bail!(
-            "CSV file not found. Please ensure Tableau-suivi-services-web-06-02-2026.csv is in src/collect/ign/data/. \
-            Tried: {} and relative paths",
-            csv_path.display()
-        );
+        // 3) Cache in TEMP_PATH (from a previous download)
+        let cache_path = PathBuf::from(TEMP_PATH).join(CSV_NAME);
+        if cache_path.exists() {
+            return Ok(cache_path);
+        }
+
+        // 4) Download from IGN and save to TEMP_PATH
+        let client = Client::new();
+        let response = client.get(IGN_CSV_URL).send().with_context(|| {
+            format!("Failed to download IGN CSV from {}", IGN_CSV_URL)
+        })?;
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "IGN CSV URL returned {}: {}",
+                response.status(),
+                IGN_CSV_URL
+            );
+        }
+        let bytes = response.bytes().with_context(|| {
+            format!("Failed to read response body from {}", IGN_CSV_URL)
+        })?;
+        create_dir_all(TEMP_PATH).context("Failed to create temp directory for IGN CSV")?;
+        write(&cache_path, &bytes).with_context(|| {
+            format!("Failed to write IGN CSV to {}", cache_path.display())
+        })?;
+        Ok(cache_path)
     }
 
     /// Load CSV file with the `csv` crate and index by nom_technique.
